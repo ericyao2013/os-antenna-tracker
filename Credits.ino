@@ -15,12 +15,7 @@
 
 // http://www.starlino.com/imu_guide.html - want to understand IMUs, read this. Its explained as simply as possible.
 
-
-// Sensor Specific help and information
-
-// ITG3200 Gyro
-
-// http://code.google.com/p/itg-3200driver/source/browse/trunk/ITG3200.h - helped me understand I2C much better as well.
+// http://tchester.org/sgm/analysis/peaks/how_to_get_view_params.html - Forumula for Azimuth and Elevation - get explanation of how the math works and real world examples.
 
 
 
@@ -29,10 +24,6 @@
 // http://www.sparkfun.com Sparkfun product pages - love the discussions and example code, they taught me heaps.
 
 // https://www.arduino.cc - Thanks for being so helpful with all the posters. Never posted myself, but I am a lurker for sure.
-
-// http://www.ladyada.net
-
-// https://www.google.com.au - Pretty much a given, but not many people say thanks.
 
 // All the blogs out there for beginner coders. THANK YOU for taking to time to help those less experienced than you.
 

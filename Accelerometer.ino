@@ -2,20 +2,20 @@ void BMA180_init(){
  byte temp[1];
  byte temp1;
   //
-  i2c_Write(BMA180_ADDRESS,BMA180_RESET,0xB6);
+  i2c_write(BMA180_ADDRESS,BMA180_RESET,0xB6);
   
   //wake up mode
-  i2c_Write(BMA180_ADDRESS,BMA180_PWR,0x10);
+  i2c_write(BMA180_ADDRESS,BMA180_PWR,0x10);
   
   // low pass filter,
-  i2c_Read(BMA180_ADDRESS, BMA180_BW,1,temp);
+  i2c_read(BMA180_ADDRESS, BMA180_BW, 1 ,temp);
   temp1=temp[0]&0x0F;
-  i2c_Write(BMA180_ADDRESS BMA180_BW, temp1);   
+  i2c_write(BMA180_ADDRESS BMA180_BW, temp1);   
   
   // range +/- 2g 
-  i2c_Read(BMA180_ADDRESS, BMA180_RANGE, 1 ,temp);  
+  i2c_read(BMA180_ADDRESS, BMA180_RANGE, 1 , temp);  
   temp1=(temp[0]&0xF1) | 0x04;
-  writeTo(BMA180_ADDRESS, BMA180_RANGE, temp1);
+  i2c_write(BMA180_ADDRESS, BMA180_RANGE, temp1);
 }
 
 void BMA180_calibrate(){

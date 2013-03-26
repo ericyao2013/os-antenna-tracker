@@ -8,7 +8,7 @@
 //Definitions file - no user configurable options.
 #include "Defs.h"
 //UAVTalk Version information file
-#include "UAVTalkVersions.h"
+#include "UAVTalk.h"
 //Standard Arduino Library for complex Math functions
 #include "math.h"
 //Arduino I2C library. Not completely necessary and could be removed if code was updated to bypass library.
@@ -61,48 +61,8 @@ void serialPrint(){
           Serial.println();
           Serial.println();
 }
-/*
-void GetEepromValues(){
-  //Only need EEPROM Address information
-  //Put delay to make sure read is successful.
-  
-  #if defined(MAG)
-  //Get MAG data
-  MAG_MIN_X = EepromRead(MAG_MIN_X_ADDR);
-  delay(5);
-  MAG_MAX_X = EepromRead(MAG_MAX_X_ADDR);
-  delay(5);
-  MAG_MIN_Y = EepromRead(MAG_MIN_Y_ADDR);
-  delay(5);
-  MAG_MAX_Y = EepromRead(MAG_MAX_Y_ADDR);
-  delay(5);
-  MAG_MIN_Z = EepromRead(MAG_MIN_Z_ADDR);
-  delay(5);
-  MAG_MAX_Z = EepromRead(MAG_MAX_Z_ADDR);
-  delay(5);
-  #endif
-  
-  #if defined(ACCEL)
-  ACCEL_OFFSET_X = EepromRead(ACCEL_OFFSET_X_ADDR);
-  delay(5);
-  ACCEL_OFFSET_Y = EepromRead(ACCEL_OFFSET_Y_ADDR);
-  delay(5);  
-  ACCEL_OFFSET_Z = EepromRead(ACCEL_OFFSET_Z_ADDR);
-  #endif
-  
-}
 
-void CheckCalibrated(){
-  
-  //Check to make sure MAG Configuration data NOT NULL
-  
-  //Check to make sure ACCEL Configuration data NOT NULL
-  if (!ACCEL_OFFSET_X || !ACCEL_OFFSET_X || !ACCEL_OFFSET_X) { //ACCEL always has offset.
-    //Do something.
-  }
-  
-}
-*/
+
 float DistanceBetween(float lat1, float lon1, float lat2, float lon2){
   
   float ToRad = PI / 180.0;
@@ -127,7 +87,7 @@ float DistanceBetween(float lat1, float lon1, float lat2, float lon2){
 
 
 // Elevation angle is not going to be perfect but it will be close enough.
-// Error of approx 1-2 degrees is 
+// Error of approx 1 degrees is the best this formula and AVR chip can get
 float ElevationAngle(float distance){
 
   // Convert Radians to Degrees
@@ -136,14 +96,14 @@ float ElevationAngle(float distance){
   // Radius of the Earth in meters
   float Radius = 6371000;
   
-  //Forumula found here - http://tchester.org/sgm/analysis/peaks/how_to_get_view_params.html
-  
   float lambda = ToDeg * ( (veh_alt - trac_alt) / distance - (distance / (2*Radius)) );
   
   return lambda;
   
 }
 
+// Not perfect but close
+// Error of approx 1 degrees is the best this formula and AVR chip can get
 float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 
   float AzAngle = 0;
@@ -163,9 +123,15 @@ float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 
 void MoveServos(float eangle, float azimuth){
   
+  // Because most Pan servos can only move 360 degrees max, the midpoint of the servos is the front of the tracker.
+  // If the tracker is pointing East 90 degrees, all measurements will be offset by 90 degrees to keep the maximum
+  // amount of travel available.
+  
   float tilt = map(eangle, 0, 90, TILT_MIN, TILT_MAX);
   
   float pan = map(azimuth, 0, 359, PAN_MIN, PAN_MAX);
+  
+  float roll = map(azimuth, 0, 359, PAN_MIN, PAN_MAX);  
   
   
 }

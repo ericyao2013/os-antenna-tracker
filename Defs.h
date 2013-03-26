@@ -35,21 +35,23 @@
   
   #define HMC5883_DATA_REGISTER 0x03
   
-  #define SENSOR_GAIN 0x00 // +/- 0.88 Ga
-  #define SENSOR_GAIN 0x20 // +/- 1.3 Ga (default)
-  #define SENSOR_GAIN 0x40 // +/- 1.9 Ga
-  #define SENSOR_GAIN 0x60 // +/- 2.5 Ga
-  #define SENSOR_GAIN 0x80 // +/- 4.0 Ga
-  #define SENSOR_GAIN 0xA0 // +/- 4.7 Ga
-  #define SENSOR_GAIN 0xC0 // +/- 5.6 Ga
-  #define SENSOR_GAIN 0xE0 // +/- 8.1 Ga
+  #define HMC5883_GAIN_88       0x00         // +/- 0.88 Ga
+  #define HMC5883_GAIN_88_SCALE 0.73
+  #define HMC5883_GAIN_13       0x20         // +/- 1.3 Ga (default)
+  #define HMC5883_GAIN_13_SCALE 0.92  
+  #define HMC5883_GAIN_19       0x40         // +/- 1.9 Ga
+  #define HMC5883_GAIN_25       0x60         // +/- 2.5 Ga
+  #define HMC5883_GAIN_40       0x80         // +/- 4.0 Ga
+  #define HMC5883_GAIN_47       0xA0         // +/- 4.7 Ga
+  #define HMC5883_GAIN_56       0xC0         // +/- 5.6 Ga
+  #define HMC5883_GAIN_81       0xE0         // +/- 8.1 Ga
   
-  #define HMC58X3_R_CONFA 0x00
-  #define HMC58X3_R_CONFB 0x01
-  #define HMC58X3_R_MODE 0x02
-  #define HMC58X3_X_SELF_TEST_GAUSS (+1.16)   //!< X axis level when bias current is applied.
-  #define HMC58X3_Y_SELF_TEST_GAUSS (+1.16)   //!< Y axis level when bias current is applied.
-  #define HMC58X3_Z_SELF_TEST_GAUSS (+1.08)   //!< Y axis level when bias current is applied.
+  #define HMC5883_R_CONFA 0x00
+  #define HMC5883_R_CONFB 0x01
+  #define HMC5883_R_MODE 0x02
+  #define HMC5883_X_SELF_TEST_GAUSS (+1.16)   //!< X axis level when bias current is applied.
+  #define HMC5883_Y_SELF_TEST_GAUSS (+1.16)   //!< Y axis level when bias current is applied.
+  #define HMC5883_Z_SELF_TEST_GAUSS (+1.08)   //!< Y axis level when bias current is applied.
   #define SELF_TEST_LOW_LIMIT  (243.0/390.0)  //!< Low limit when gain is 5.
   #define SELF_TEST_HIGH_LIMIT (575.0/390.0)  //!< High limit when gain is 5.
   #define HMC_POS_BIAS 1
