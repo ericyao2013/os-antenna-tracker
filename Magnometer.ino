@@ -8,7 +8,7 @@
 
 #if defined(HMC5883)
 
-void HMC5883_init(){
+void MAG_init(){
   // Wait 50ms bit before starting
   delay(50);
   
@@ -20,7 +20,8 @@ void HMC5883_init(){
  
 }
 
-void HMC5883_read() {
+// Read data from Magnetometer
+float MAG_read() {
   int x, y, z;
 
   // Initiate communications with compass
@@ -35,41 +36,17 @@ void HMC5883_read() {
     y = Wire.read() << 8 | Wire.read();
   }
   
-  // C
+  // Calculate the scaled Mag readings
   float sx = x * HMC5883_GAIN_13_SCALE;
   float sy = y * HMC5883_GAIN_13_SCALE;
   float sz = z * HMC5883_GAIN_13_SCALE;
   
-  float heading = atan2(sy, sx);
   
-  // Correct for when signs are reversed.
-  if(heading < 0)
-    heading += 2*PI;
-    
-  // Check for wrap due to addition of declination.
-  if(heading > 2*PI)
-    heading -= 2*PI;
-   
-  // Convert radians to degrees for readability.
-  float headingDegrees = heading * 180/M_PI;
+  //NEED TO RETURN AN ARRAY OF THE ABOVE VALUES
   
-  
-  // Print raw values
-  Serial.print("Mx=");
-  Serial.print(sx);
-  Serial.print(", My=");
-  Serial.print(sy);
-  Serial.print(", Mz=");
-  Serial.print(sz);
-  Serial.print(", Heading=");
-  Serial.println(headingDegrees);
-  
-  delay(500);
 }
 
-
-
-void calibrate(void) {
+void MAG_calibrate(void) {
 
   delay(5000);
   Serial.println("MAGNETOMETER CALIBRATION");

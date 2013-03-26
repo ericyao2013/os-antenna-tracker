@@ -15,8 +15,12 @@
 #include "Wire.h"
 // Arduino Servo library
 #include "Servo.h"
+// Declination library
+#include "AP_Declination.h"
 /******************************************************************************/
 
+// Declination Library
+AP_Declination declination;
 
 Servo PAN;
 Servo TILT;
@@ -86,7 +90,7 @@ float DistanceBetween(float lat1, float lon1, float lat2, float lon2){
 }
 
 
-// Elevation angle is not going to be perfect but it will be close enough.
+// Here we get the Elevation angle
 // Error of approx 1 degrees is the best this formula and AVR chip can get
 float ElevationAngle(float distance){
 
@@ -96,13 +100,14 @@ float ElevationAngle(float distance){
   // Radius of the Earth in meters
   float Radius = 6371000;
   
-  float lambda = ToDeg * ( (veh_alt - trac_alt) / distance - (distance / (2*Radius)) );
+  float eAngle = ToDeg * ( (veh_alt - trac_alt) / distance - (distance / (2*Radius)) );
   
-  return lambda;
+  // Returning the Elevation Angle 
+  return eAngle;
   
 }
 
-// Not perfect but close
+// Getting the Azimuth Angle
 // Error of approx 1 degrees is the best this formula and AVR chip can get
 float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 
@@ -121,19 +126,68 @@ float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
   
 }
 
-void MoveServos(float eangle, float azimuth){
+
+// Here we get the MAG readings and the ACCEL readings and then tilt compensate them.
+// We then get the Declination and compensate the heading for that
+// Returns the Heading from true north
+float Heading(){
   
-  // Because most Pan servos can only move 360 degrees max, the midpoint of the servos is the front of the tracker.
-  // If the tracker is pointing East 90 degrees, all measurements will be offset by 90 degrees to keep the maximum
-  // amount of travel available.
+  // Get MAG scaled values
+  float magValues = MAG_read();
   
-  float tilt = map(eangle, 0, 90, TILT_MIN, TILT_MAX);
+  // Get ACCEL scaled Values
+  float accelValues = ACCEL_read();
   
-  float pan = map(azimuth, 0, 359, PAN_MIN, PAN_MAX);
+  // Get Tilt compensated heading
+  float headingTiltComp = CalculateHeadingTiltComp(magValues, accelValues);
   
-  float roll = map(azimuth, 0, 359, PAN_MIN, PAN_MAX);  
+  // Get the Declination Angle
+  float declinationAngle = declination.get_declination(trac_lat, trac_lon);
   
+  // Correct heading by Declination Angle
+  float tnHeading = headingTiltComp + declinationAngle;
   
+  return tnHeading;
+
+}
+
+
+// Here we calculate the Tilt and Roll of the antenna tracker
+float TiltRoll(){
+  
+  // Get MAG scaled values
+  float magValues = MAG_read();
+  
+  // Get ACCEL scaled Values
+  float accelValues = ACCEL_read();
+ 
+  
+}
+
+void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHeading){
+  
+    // Because most Pan servos can only move 360 degrees max, the midpoint of the servos is the front of the tracker.
+    // If the tracker is pointing East 90 degrees, all measurements will be offset by 90 degrees to keep the maximum
+    // amount of travel available.
+    
+    // Correct azimuth for True North Heading (Heading compensated for declination)
+    float correctedAzimuth = azimuth - tnHeading;
+    
+    // Correct Elevation angle for Tilt
+    float correctedTilt = eAngle - tilt;
+    
+    
+    // Mapping Servo Min and Max to the MIN and MAX of the Axis
+    int servoTilt = map(eangle, 0, 90, TILT_MIN, TILT_MAX);
+    
+    int servoPan = map(correctedAzimuth, 0, 359, PAN_MIN, PAN_MAX);
+    
+    int ServoRoll = map(azimuth, 0, 359, ROLL_MIN, ROLL_MAX);
+ 
+    // Moving the Servos
+    TILT.writeMicroseconds(servoTilt);
+    PAN.writeMicroseconds(servoPan);  
+    ROLL.writeMicroseconds(servoRoll);  
 }
 
 //The main loop, where everything happens.
@@ -149,18 +203,14 @@ void loop(){
     // Used for Servo Movement
     float AzAngle = Azimuth(distanceToHome, trac_lat, trac_lon, veh_lat, veh_lon);
     
-    //GET MAG HEADING BEFORE SENDING TO SERVOS.
-    //MAG heading must be corrected for:
-    //Declination
-    int magheading = 1;
+    // Get corrected compass heading
+    float tnHeading = Heading()
+    
+    // Get Tilt & Roll
+    //float tiltDegrees = ACCEL_read()
     
     //Servos must be corrected for current front as Zero point.
-    MoveServos(ElevAngle, AzAngle);
-  
-    //Only run the following code if its been 1 second since the last time it was run.
-    unsigned long currentMillis = millis();
-    if(currentMillis - previousMillis > 1000) {
-      previousMillis = currentMillis;
+    MoveServos(ElevAngle, AzAngle, tiltDegrees, rollDegrees, tnHeading);
     
     #if defined (PRINT_TO_SERIAL)
     serialPrint();
