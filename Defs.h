@@ -3,14 +3,14 @@
 /******************************************************************************/
 #if defined(HK_MW_PRO)
 
-  #define GYRO
-  #define ITG3205
-  #define GYRO_I2C_SPEED 400hz
-  #define ITG3200_ADDRESS 0X68
+  //#define GYRO
+  //#define ITG3205
+  //#define GYRO_I2C_SPEED 400hz
+  //#define ITG3200_ADDRESS 0X68
   
-  #define ACCEL//Accel
-  #define BMA180
-  #define BMA180_ADDRESS 0x40  
+  //#define ACCEL//Accel
+  //#define BMA180
+  //#define BMA180_ADDRESS 0x40  
 
   //#define BARO //Barometer
   //#define BMP085

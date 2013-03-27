@@ -14,16 +14,18 @@ void i2c_write(byte address, byte reg, byte data){
    Wire.endTransmission();
 }
 
-void i2c_read(uint8_t address, uint8_t reg, uint8_t bufsize) {
+void i2c_read(uint8_t address, uint8_t reg, int length) {
   Wire.beginTransmission(address); 
-  Wire.requestFrom(address, bufsize);    // request 8 bytes from ITG3200
+  Wire.requestFrom(address, length);
   
   int i = 0;
-  byte buff[bufsize];
+  uint_8 buffer[length];
   while(Wire.available())    
   { 
-    buff[i] = Wire.read(); 
+    buffer[i] = Wire.read(); 
     i++;
   }
   Wire.endTransmission();
+  
+  return buffer;
 }

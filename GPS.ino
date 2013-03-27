@@ -1,3 +1,6 @@
+// I wanted to get a result so I decided to use the TinyGPS library.
+// At some stage I will write the code to do the GPS code natively.
+
 void getgps(TinyGPS &gps)
 {
 

@@ -48,7 +48,9 @@ void setup(){
   #if defined(CALIBRATE_MAG)
   MAG_calibrate();
   #endif
-  // Read the Mag calibration settings
+  
+  // Read the MAG calibration values
+  // Values are set when the MAG is calibrated
   readMagCal();
   //Get stored data from EEPROM
   //GetEepromValues();
@@ -143,10 +145,10 @@ float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 float Heading(){
   
   // Get MAG scaled values
-  float magValues = MAG_read();
+  byte* magValues = MAG_read();
   
   // Get ACCEL scaled Values
-  float accelValues = ACCEL_read();
+  byte* accelValues = ACCEL_read();
   
   // Get Tilt compensated heading
   float headingTiltComp = CalculateHeadingTiltComp(magValues, accelValues);
@@ -161,6 +163,43 @@ float Heading(){
 
 }
 
+  
+//Get tilt compensated heading
+// Code found here - 
+float CalculateHeadingTiltComp(magValues, accelValues){
+    
+  // We are swapping the accelerometers axis as they are opposite to the compass the way we have them mounted.
+  // We are swapping the signs axis as they are opposite.
+  // Configure this for your setup.
+  float accX = -acc.YAxis;
+  float accY = -acc.XAxis;
+  
+  float rollRadians = asin(accY);
+  float pitchRadians = asin(accX);
+  
+  // We cannot correct for tilt over 40 degrees with this algorithm, if the board is tilted as such, return 0.
+  if(rollRadians > 0.78 || rollRadians < -0.78 || pitchRadians > 0.78 || pitchRadians < -0.78)
+  {
+    return 0;
+  }
+  
+  // Some of these are used twice, so rather than computing them twice in the algorithem we precompute them before hand.
+  float cosRoll = cos(rollRadians);
+  float sinRoll = sin(rollRadians);  
+  float cosPitch = cos(pitchRadians);
+  float sinPitch = sin(pitchRadians);
+  
+  float Xh = mag.XAxis * cosPitch + mag.ZAxis * sinPitch;
+  float Yh = mag.XAxis * sinRoll * sinPitch + mag.YAxis * cosRoll - mag.ZAxis * sinRoll * cosPitch;
+  
+  float heading = atan2(Yh, Xh);
+    
+  return heading;
+  
+  return tcheading;
+  
+}  
+
 
 // Here we calculate the Tilt and Roll of the antenna tracker
 float TiltRoll(){
@@ -171,7 +210,6 @@ float TiltRoll(){
   // Get ACCEL scaled Values
   float accelValues = ACCEL_read();
  
-  
 }
 
 void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHeading){

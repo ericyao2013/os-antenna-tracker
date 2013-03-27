@@ -22,7 +22,7 @@ void BMA180_init(){
   i2c_write(BMA180_ADDRESS, BMA180_RANGE, temp1);
 }
 
-void BMA180_calibrate(){
+void ACCEL_calibrate(){
   
  // Number of readings to take for average
  int number = 100
@@ -43,34 +43,35 @@ void BMA180_calibrate(){
     tmpy += AccelY;
     tmpz += AccelZ; 
     }  
- g_offx = tmpx/number;
- g_offy = tmpy/number;
- g_offz = tmpz/number;
+ a_offx = tmpx/number;
+ a_offy = tmpy/number;
+ a_offz = tmpz/number;
  
 }
   
 }
 
-void ACCEL_read(){ 
+unit_8* ACCEL_read(){ 
  // read in the 3 axis data, each one is 14 bits 
  // print the data to terminal 
  int n=6;
  byte result[5];
- i2c_Read(BMA180_ADDRESS, BMA180_DATA, n , result);
  
- int x= (( result[0] | result[1]<<8)>>2)+offx ;
+ uint8_t* buffer = i2c_read(BMA180_ADDRESS, BMA180_DATA, 6);
+ 
+ int x = (( result[0] | result[1]<<8)>>2)+offx ;
  float x1=x/4096.0;
   Serial.print("Ax=");
  Serial.print(x);
  Serial.print("g"); 
  //
- int y= (( result[2] | result[3]<<8 )>>2)+offy;
+ int y = (( result[2] | result[3]<<8 )>>2)+offy;
  float y1=y/4096.0;
  Serial.print(", Ay=");
  Serial.print(y);
  Serial.print("g"); 
  //
- int z= (( result[4] | result[5]<<8 )>>2)+offz;
+ int z = (( result[4] | result[5]<<8 )>>2)+offz;
  float z1=z/4096.0;
  Serial.print(", Az=");
  Serial.print(z);
