@@ -19,13 +19,25 @@
 #include "AP_Declination.h"
 // TinyGPS Library
 #include "TinyGPS.h"
+// HMC5883L Library
+#include "HMC5883L.h"
+// BMA180 Library
+#include "BMA180.h"
+// IT3200 Library - ITG3205 uses the same library
+#include "ITG3200.h"
 /******************************************************************************/
 
 // Declination object
 AP_Declination declination;
 // TinyGPS object
 TinyGPS gps;
-
+void getgps(TinyGPS &gps); // No idea what this does - seems to be an array return
+// HMC5883L object
+HMC5883L compass = HMC5883L();
+// BMA180 object
+BMA180 accel = BMA180(BMA180_ADDRESS_SDO_LOW);
+// ITG3200 object
+ITG3200 gyro = ITG3200();
 
 Servo PAN;
 Servo TILT;
@@ -37,7 +49,7 @@ void setup(){
   //Won't be required when there is the ability to ARM the tracker (most likely via button).
   currentMillis = millis();
   
-  //Setup the Serial Connections.
+  // Setup the Serial Connections.
   Serial.begin(9600);
   Serial2.begin(MODEM_BAUD);
   Serial3.begin(GPS_BAUD);
@@ -45,19 +57,16 @@ void setup(){
   PAN.attach(PAN_PIN);
   TILT.attach(TILT_PIN);
   
-  #if defined(CALIBRATE_MAG)
-  MAG_calibrate();
-  #endif
+  // Initialise the ACCEL
+  ACCEL_init();
+  //Initialise the MAG - Calibration is also done here
+  MAG_init();
+  //Initialise the GYRO
+  GYRO_init();
   
-  // Read the MAG calibration values
-  // Values are set when the MAG is calibrated
-  readMagCal();
+
   //Get stored data from EEPROM
   //GetEepromValues();
-  
-  //Check to make sure calibration has been done.
-  //Tracker will not operate without calibration being done.
-  //CheckCalibrated();
 
 }
 

@@ -1,53 +1,21 @@
-#if defined(MAG)
-
 // ************************************************************************************************************
 // I2C Compass HMC5883
 // ************************************************************************************************************
 // Earth Magnetic Field appox 0.6 gauss. Must set Mag sensitivity above this but no so high that resolution is lost
 // ************************************************************************************************************
 
-#if defined(HMC5883)
-
-void MAG_init(){
-  // Wait 50ms bit before starting
-  delay(50);
+void MAG_init();
+  compass.SetScale(1.3);
+  compass.SetMeasurementMode(Measurement_Continuous);
   
-  // Set operating mode to continuous
-  i2c_Write(HMC5883_ADDRESS, HMC5883_R_MODE, 0x00);
+  // If you have selected to calibrate the MAG
+  #if defined(CALIBRATE_MAG)
+  MAG_calibrate();
+  #endif
   
-  // Set scale to 1.3 Gauss
-  i2c_Write(HMC5883_ADDRESS, HMC5883_R_CONFB, HMC5883_GAIN_13);
- 
-}
-
-// Read data from Magnetometer
-float MAG_read() {
-  unit8_t scaled[3];
-  
-  // Request 6 bytes of data - x, y, x axis data  
-  uint8_t* buffer = i2c_read(HMC5883_ADDRESS, HMC5883_DATA_REGISTER, 6)  
-
-
-   scaled[0] = (buffer[0] <<8 | buffer[1]);
-
-   scaled[1] = (buffer[2] <<8 | buffer[3]);
-
-   scaled[2] = (buffer[4] <<8 | buffer[5]);
-
-  Wire.requestFrom(HMC5883L, 6);    // Request 6 bytes; 2 bytes per axis
-  if(Wire.available() <=6) {    // If 6 bytes available
-    x = Wire.read() << 8 | Wire.read();
-    z = Wire.read() << 8 | Wire.read();
-    y = Wire.read() << 8 | Wire.read();
-  }
-  
-  // Calculate the scaled Mag readings
-  float sx = x * HMC5883_GAIN_13_SCALE;
-  float sy = y * HMC5883_GAIN_13_SCALE;
-  float sz = z * HMC5883_GAIN_13_SCALE;
-  
-  
-  //NEED TO RETURN AN ARRAY OF THE ABOVE VALUES
+  // Read the MAG calibration values
+  // Values are set when the MAG is calibrated
+  readMagCalibration();
   
 }
 
@@ -73,21 +41,21 @@ void MAG_calibrate(void) {
         {
           magraw = compass.ReadRawAxis();
           scaled = compass.ReadScaledAxis();               
-          compassMaxMin(scaled.XAxis,scaled.YAxis);  //look for max and min values
+          compassMaxMin(scaled.XAxis, scaled.YAxis);  //look for max and min values
           calibrationOutput();  //output current data as calibration proceeds
           delay(20);
         }
        
   calcScaleFactor_Offset();
   calibrationComplete();  //output the resulting values from calibration   
-  storeCal();    //save the calculated x & y offset and scale factor
+  storeMagCalibration();    //save the calculated x & y offset and scale factor
   Serial.println();
   Serial.println("*************************************************************");
-  Serial.println("Magnetometer has been calibrated");
   delay(1000);
-  Serial.println();
+  Serial.println("Magnetometer has been calibrated");
+  delay(2000);
+  Serial.println("Please comment out CALIBRATE_MAG and reload the board software");
   
- 
 }
 
 
@@ -132,7 +100,7 @@ void calcScaleFactor_Offset()
 
 /*************************************************************************/
 //save calibration data to eeprom
-void storeCal(){
+void storeMagCalibration(){
   //write x & y scale factors and offsets to eeprom 
     EEPROM.write(0,lowByte(compassXOffset));   
     EEPROM.write(1,highByte(compassXOffset));
@@ -148,9 +116,9 @@ void storeCal(){
      
 }
 
-/*************************************************************************/
-//read calibration data from eeprom
-void readMagCal(){
+
+// Read calibration data from eeprom
+void readMagCalibration(){
  
   compassXOffset = (EEPROM.read(1) * 256) + EEPROM.read(0);
   compassYOffset = (EEPROM.read(3) * 256) + EEPROM.read(2);
@@ -158,7 +126,3 @@ void readMagCal(){
   yScaleFactor = (EEPROM.read(7) * 256) + EEPROM.read(6);
  
 }
-
-#endif //HMC5883
-
-#endif //MAG
