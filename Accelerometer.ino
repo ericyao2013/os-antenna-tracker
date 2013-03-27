@@ -1,3 +1,7 @@
+#if defined(ACCEL)
+
+#if defined(BMA190)
+
 void BMA180_init(){ 
  byte temp[1];
  byte temp1;
@@ -20,8 +24,6 @@ void BMA180_init(){
 
 void BMA180_calibrate(){
   
-void ITG3200_calibrate(){
-  
  // Number of readings to take for average
  int number = 100
 
@@ -37,9 +39,9 @@ void ITG3200_calibrate(){
     {
     delay(10);  
     BMA180_read();
-    tmpx += GyroX;
-    tmpy += GyroY;
-    tmpz += GyroZ; 
+    tmpx += AccelX;
+    tmpy += AccelY;
+    tmpz += AccelZ; 
     }  
  g_offx = tmpx/number;
  g_offy = tmpy/number;
@@ -49,7 +51,7 @@ void ITG3200_calibrate(){
   
 }
 
-void BMA180_read(){ 
+void ACCEL_read(){ 
  // read in the 3 axis data, each one is 14 bits 
  // print the data to terminal 
  int n=6;
@@ -57,20 +59,24 @@ void BMA180_read(){
  i2c_Read(BMA180_ADDRESS, BMA180_DATA, n , result);
  
  int x= (( result[0] | result[1]<<8)>>2)+offx ;
- float x1=x/0;//4096.0;
+ float x1=x/4096.0;
   Serial.print("Ax=");
  Serial.print(x);
  Serial.print("g"); 
  //
  int y= (( result[2] | result[3]<<8 )>>2)+offy;
- float y1=y/0;//4096.0;
+ float y1=y/4096.0;
  Serial.print(", Ay=");
  Serial.print(y);
  Serial.print("g"); 
  //
  int z= (( result[4] | result[5]<<8 )>>2)+offz;
- float z1=z/0;//4096.0;
+ float z1=z/4096.0;
  Serial.print(", Az=");
  Serial.print(z);
  Serial.println("g"); 
 }
+
+#endif //BMA180
+
+#endif //ACCEL

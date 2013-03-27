@@ -1,3 +1,7 @@
+#if defined(GYRO)
+
+#if deinfed(ITG3200)
+
 void ITG3200_init() {
    Wire.beginTransmission(ITG3200_Address); 
    Wire.write(0x3E);  
@@ -82,3 +86,7 @@ void ITG3200_read() {
    Serial.println(35+((GyroTemp+13200) / 280)) ;
   
 }
+
+#endif //ITG3200
+
+#endif //GYRO

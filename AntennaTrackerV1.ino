@@ -9,18 +9,23 @@
 #include "Defs.h"
 //UAVTalk Version information file
 #include "UAVTalk.h"
-//Standard Arduino Library for complex Math functions
+//Arduino Library for complex Math functions
 #include "math.h"
-//Arduino I2C library. Not completely necessary and could be removed if code was updated to bypass library.
+//Arduino I2C library
 #include "Wire.h"
 // Arduino Servo library
 #include "Servo.h"
 // Declination library
 #include "AP_Declination.h"
+// TinyGPS Library
+#include "TinyGPS.h"
 /******************************************************************************/
 
-// Declination Library
+// Declination object
 AP_Declination declination;
+// TinyGPS object
+TinyGPS gps;
+
 
 Servo PAN;
 Servo TILT;
@@ -40,6 +45,11 @@ void setup(){
   PAN.attach(PAN_PIN);
   TILT.attach(TILT_PIN);
   
+  #if defined(CALIBRATE_MAG)
+  MAG_calibrate();
+  #endif
+  // Read the Mag calibration settings
+  readMagCal();
   //Get stored data from EEPROM
   //GetEepromValues();
   

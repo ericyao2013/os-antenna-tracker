@@ -85,70 +85,75 @@ void MAG_calibrate(void) {
  
 }
 
-    //used calibrating hmc5883l compass
-    //*******************************************************
-    void compassMaxMin(int xRaw, int yRaw)
-    {
-      if(xRaw>800 || xRaw<-800 || yRaw>800 || yRaw<-800)
-        return; //prevent extraneous high readings from messing with calibration
-       
-      if(xRaw > xMax)
-        xMax = xRaw;
 
-      if(xRaw < xMin)
-        xMin = xRaw;
+//used calibrating hmc5883l compass
+//*******************************************************
+void compassMaxMin(int xRaw, int yRaw)
+{
+  if(xRaw>800 || xRaw<-800 || yRaw>800 || yRaw<-800)
+    return; //prevent extraneous high readings from messing with calibration
+   
+  if(xRaw > xMax)
+    xMax = xRaw;
+
+  if(xRaw < xMin)
+    xMin = xRaw;
+ 
+  if(yRaw > yMax)
+    yMax = yRaw;
+ 
+  if(yRaw < yMin)
+    yMin = yRaw;
+   
+}
+
+//*******************************************************************
+//calculate the x&y scale factor and offsets for hmc5883l
+//compensates for objects around sensor distorting magnetometer values
+void calcScaleFactor_Offset()
+{
+  xScaleFactor = (yMax - yMin)/(xMax - xMin);
+  if(xScaleFactor < 1)
+    xScaleFactor = 1;
+
+  yScaleFactor = (xMax - xMin)/(yMax - yMin);
+  if(yScaleFactor < 1)
+    yScaleFactor = 1;
+
+  compassXOffset = ((xMax - xMin)/2 - xMax) * xScaleFactor;
+  compassYOffset = ((yMax - yMin)/2 - yMax) * yScaleFactor;
+   
+}
+
+/*************************************************************************/
+//save calibration data to eeprom
+void storeCal(){
+  //write x & y scale factors and offsets to eeprom 
+    EEPROM.write(0,lowByte(compassXOffset));   
+    EEPROM.write(1,highByte(compassXOffset));
+   
+    EEPROM.write(2,lowByte(compassYOffset));   
+    EEPROM.write(3,highByte(compassYOffset));
+   
+    EEPROM.write(4,lowByte(xScaleFactor));   
+    EEPROM.write(5,highByte(xScaleFactor));
+   
+    EEPROM.write(6,lowByte(yScaleFactor));   
+    EEPROM.write(7,highByte(yScaleFactor));
      
-      if(yRaw > yMax)
-        yMax = yRaw;
-     
-      if(yRaw < yMin)
-        yMin = yRaw;
-       
-    }
+}
 
-    //*******************************************************************
-    //calculate the x&y scale factor and offsets for hmc5883l
-    //compensates for objects around sensor distorting magnetometer values
-    void calcScaleFactor_Offset()
-    {
-      xScaleFactor = (yMax - yMin)/(xMax - xMin);
-      if(xScaleFactor < 1)
-        xScaleFactor = 1;
+/*************************************************************************/
+//read calibration data from eeprom
+void readMagCal(){
+ 
+  compassXOffset = (EEPROM.read(1) * 256) + EEPROM.read(0);
+  compassYOffset = (EEPROM.read(3) * 256) + EEPROM.read(2);
+  xScaleFactor = (EEPROM.read(5) * 256) + EEPROM.read(4);
+  yScaleFactor = (EEPROM.read(7) * 256) + EEPROM.read(6);
+ 
+}
 
-      yScaleFactor = (xMax - xMin)/(yMax - yMin);
-      if(yScaleFactor < 1)
-        yScaleFactor = 1;
+#endif //HMC5883
 
-      compassXOffset = ((xMax - xMin)/2 - xMax) * xScaleFactor;
-      compassYOffset = ((yMax - yMin)/2 - yMax) * yScaleFactor;
-       
-    }
-
-    /*************************************************************************/ 
-    //save calibration data to eeprom
-    void storeCal(){
-      //write x & y scale factors and offsets to eeprom 
-        EEPROM.write(0,lowByte(compassXOffset));   
-        EEPROM.write(1,highByte(compassXOffset));
-       
-        EEPROM.write(2,lowByte(compassYOffset));   
-        EEPROM.write(3,highByte(compassYOffset));
-       
-        EEPROM.write(4,lowByte(xScaleFactor));   
-        EEPROM.write(5,highByte(xScaleFactor));
-       
-        EEPROM.write(6,lowByte(yScaleFactor));   
-        EEPROM.write(7,highByte(yScaleFactor));
-         
-    }
-
-    /*************************************************************************/ 
-    //read calibration data from eeprom
-    void readCal(){
-     
-      compassXOffset = (EEPROM.read(1) * 256) + EEPROM.read(0);
-      compassYOffset = (EEPROM.read(3) * 256) + EEPROM.read(2);
-      xScaleFactor = (EEPROM.read(5) * 256) + EEPROM.read(4);
-      yScaleFactor = (EEPROM.read(7) * 256) + EEPROM.read(6);
-     
-    }
+#endif //MAG

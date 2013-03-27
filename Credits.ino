@@ -28,6 +28,4 @@
 // All the blogs out there for beginner coders. THANK YOU for taking to time to help those less experienced than you.
 
 // NOTE: Try to get away from using libraries as soon as you have got a few results. Libraries are great for getting initial
-// results but will hinder you as you write more complex code. When I say complex I don't mean a nuclear reactor, 
-// I mean basic coding. Its surprising how easy it is to code without libraries and how much quicker you get results 
-// once you move past them.
+// results but will hinder your understanding of how sensors and the math involved work.
