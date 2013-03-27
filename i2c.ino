@@ -14,18 +14,18 @@ void i2c_write(byte address, byte reg, byte data){
    Wire.endTransmission();
 }
 
-void i2c_read(uint8_t address, uint8_t reg, int length) {
+uint8_t* i2c_read(uint8_t address, uint8_t reg, int length) {
+  //Create the Array that will hold the data
+  uint8_t buffer[length];
+  
   Wire.beginTransmission(address); 
   Wire.requestFrom(address, length);
+
+  //if(Wire.available() !6) return; - this is meant to be the error part.
   
-  int i = 0;
-  uint_8 buffer[length];
-  while(Wire.available())    
-  { 
-    buffer[i] = Wire.read(); 
-    i++;
-  }
-  Wire.endTransmission();
-  
+  for(int i = 0; i < length; i++)
+    buffer[i] = Wire.read();
+  Wire.endTransmission();  
   return buffer;
+
 }

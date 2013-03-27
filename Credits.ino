@@ -26,6 +26,3 @@
 // https://www.arduino.cc - Thanks for being so helpful with all the posters. Never posted myself, but I am a lurker for sure.
 
 // All the blogs out there for beginner coders. THANK YOU for taking to time to help those less experienced than you.
-
-// NOTE: Try to get away from using libraries as soon as you have got a few results. Libraries are great for getting initial
-// results but will hinder your understanding of how sensors and the math involved work.

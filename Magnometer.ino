@@ -22,12 +22,17 @@ void MAG_init(){
 
 // Read data from Magnetometer
 float MAG_read() {
-  int x, y, z;
+  unit8_t scaled[3];
+  
+  // Request 6 bytes of data - x, y, x axis data  
+  uint8_t* buffer = i2c_read(HMC5883_ADDRESS, HMC5883_DATA_REGISTER, 6)  
 
-  // Initiate communications with compass
-  Wire.beginTransmission(HMC5883L);
-  Wire.write(byte(0x03));       // Send request to X MSB register
-  Wire.endTransmission();
+
+   scaled[0] = (buffer[0] <<8 | buffer[1]);
+
+   scaled[1] = (buffer[2] <<8 | buffer[3]);
+
+   scaled[2] = (buffer[4] <<8 | buffer[5]);
 
   Wire.requestFrom(HMC5883L, 6);    // Request 6 bytes; 2 bytes per axis
   if(Wire.available() <=6) {    // If 6 bytes available

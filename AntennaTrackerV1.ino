@@ -144,11 +144,13 @@ float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 // Returns the Heading from true north
 float Heading(){
   
+  
+  
   // Get MAG scaled values
-  byte* magValues = MAG_read();
+  byte magValues = MAG_read();
   
   // Get ACCEL scaled Values
-  byte* accelValues = ACCEL_read();
+  byte accelValues = ACCEL_read();
   
   // Get Tilt compensated heading
   float headingTiltComp = CalculateHeadingTiltComp(magValues, accelValues);
@@ -208,7 +210,7 @@ float TiltRoll(){
   float magValues = MAG_read();
   
   // Get ACCEL scaled Values
-  float accelValues = ACCEL_read();
+  float accelValues = ACCEL_read(); 
  
 }
 
