@@ -22,7 +22,7 @@
 // HMC5883L Library
 #include "HMC5883L.h"
 // BMA180 Library
-#include "BMA180.h"
+#include "bma180.h"
 // IT3200 Library - ITG3205 uses the same library
 #include "ITG3200.h"
 /******************************************************************************/
@@ -33,9 +33,9 @@ AP_Declination declination;
 TinyGPS gps;
 void getgps(TinyGPS &gps); // No idea what this does - seems to be an array return
 // HMC5883L object
-HMC5883L compass = HMC5883L();
+HMC5883L mag = HMC5883L();
 // BMA180 object
-BMA180 accel = BMA180(BMA180_ADDRESS_SDO_LOW);
+BMA180 accel = BMA180();
 // ITG3200 object
 ITG3200 gyro = ITG3200();
 
@@ -59,10 +59,14 @@ void setup(){
   
   // Initialise the ACCEL
   ACCEL_init();
-  //Initialise the MAG - Calibration is also done here
+  //Initialise the MAG - Calibration (if defined) is also done here.
   MAG_init();
   //Initialise the GYRO
   GYRO_init();
+  
+  #if defined(GYRO_CALIBRATE_STARTUP)
+  GYRO_Calibrate();
+  #endif
   
 
   //Get stored data from EEPROM
@@ -162,7 +166,7 @@ float Heading(){
   byte accelValues = ACCEL_read();
   
   // Get Tilt compensated heading
-  float headingTiltComp = CalculateHeadingTiltComp(magValues, accelValues);
+  //float headingTiltComp = CalculateHeadingTiltComp(magValues, accelValues);
   
   // Get the Declination Angle
   float declinationAngle = declination.get_declination(trac_lat, trac_lon);
@@ -177,7 +181,7 @@ float Heading(){
   
 //Get tilt compensated heading
 // Code found here - 
-float CalculateHeadingTiltComp(magValues, accelValues){
+float CalculateHeadingTiltComp(byte magValues, byte accelValues){
     
   // We are swapping the accelerometers axis as they are opposite to the compass the way we have them mounted.
   // We are swapping the signs axis as they are opposite.
@@ -216,10 +220,10 @@ float CalculateHeadingTiltComp(magValues, accelValues){
 float TiltRoll(){
   
   // Get MAG scaled values
-  float magValues = MAG_read();
+  //float magValues = MAG_read();
   
   // Get ACCEL scaled Values
-  float accelValues = ACCEL_read(); 
+  //float accelValues = ACCEL_read(); 
  
 }
 
@@ -263,7 +267,7 @@ void loop(){
     float AzAngle = Azimuth(distanceToHome, trac_lat, trac_lon, veh_lat, veh_lon);
     
     // Get corrected compass heading
-    float tnHeading = Heading()
+    float tnHeading = Heading();
     
     // Get Tilt & Roll
     //float tiltDegrees = ACCEL_read()

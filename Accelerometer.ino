@@ -1,5 +1,6 @@
 void ACCEL_init(){
   
+  bma180.SetAddress((int)BMA180_ADDRESS_SDO_LOW);
   bma180.SoftReset();
   bma180.enableWrite();
   bma180.SetFilter(bma180.F10HZ);

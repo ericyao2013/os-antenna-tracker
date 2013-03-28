@@ -3,6 +3,7 @@
 /******************************************************************************/
 #define CALIBRATE_MAG
 #define INIT_MTK_GPS
+#define GYRO_CALIBRATE_STARTUP
 //#define SET_LEVEL - Used for ACCEL, which I am not using at the moment.
 //#define PRINT_TO_SERIAL //Should only be used for debugging.
 

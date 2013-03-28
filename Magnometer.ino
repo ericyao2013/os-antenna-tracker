@@ -1,12 +1,7 @@
-// ************************************************************************************************************
-// I2C Compass HMC5883
-// ************************************************************************************************************
-// Earth Magnetic Field appox 0.6 gauss. Must set Mag sensitivity above this but no so high that resolution is lost
-// ************************************************************************************************************
-
 void MAG_init();
-  compass.SetScale(1.3);
-  compass.SetMeasurementMode(Measurement_Continuous);
+
+  mag.SetScale(1.3);
+  mag.SetMeasurementMode(Measurement_Continuous);
   
   // If you have selected to calibrate the MAG
   #if defined(CALIBRATE_MAG)
@@ -39,8 +34,8 @@ void MAG_calibrate(void) {
         //delayMillis = millis() + 2000;
         for(int x=millis(); x<millis()+30000 ; x = +millis())  //continualy read the raw axis data while waiting for operator to slowly rotate compass to next position
         {
-          magraw = compass.ReadRawAxis();
-          scaled = compass.ReadScaledAxis();               
+          magraw = mag.ReadRawAxis();
+          scaled = mag.ReadScaledAxis();               
           compassMaxMin(scaled.XAxis, scaled.YAxis);  //look for max and min values
           calibrationOutput();  //output current data as calibration proceeds
           delay(20);
@@ -53,8 +48,9 @@ void MAG_calibrate(void) {
   Serial.println("*************************************************************");
   delay(1000);
   Serial.println("Magnetometer has been calibrated");
-  delay(2000);
+  delay(1000);
   Serial.println("Please comment out CALIBRATE_MAG and reload the board software");
+  delay(5000);  
   
 }
 

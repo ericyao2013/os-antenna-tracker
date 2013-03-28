@@ -19,7 +19,3 @@ void GYRO_read() {
   gyro.readGyro(&x,&y,&z);
   
 }
-
-#endif //ITG3200
-
-#endif //GYRO
