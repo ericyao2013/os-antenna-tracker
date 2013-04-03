@@ -3,6 +3,8 @@
 /******************************************************************************/
 //Standard Arduino Library
 #include "Arduino.h"
+//EEPROM Library
+#include "EEPROM.h"
 //Configuration options and variable declarations - This is where you setup your configuration
 #include "Config.h"
 //Definitions file - no user configurable options.
@@ -43,93 +45,92 @@ Servo PAN;
 Servo TILT;
 Servo ROLL;
 
+int calData[16];
+
 void setup(){
-  
+
   //Get the start time - used for servo output initialisation.
   //Won't be required when there is the ability to ARM the tracker (most likely via button).
   currentMillis = millis();
-  
+
   // Setup the Serial Connections.
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial2.begin(MODEM_BAUD);
   Serial3.begin(GPS_BAUD);
   
+  //Initialising the i2c interface
+  Wire.begin();
+
   PAN.attach(PAN_PIN);
   TILT.attach(TILT_PIN);
-  
+
   // Initialise the ACCEL
   ACCEL_init();
-  //Initialise the MAG - Calibration (if defined) is also done here.
+  //Initialise the MAG
   MAG_init();
   //Initialise the GYRO
   GYRO_init();
-  
-  #if defined(GYRO_CALIBRATE_STARTUP)
-  GYRO_Calibrate();
-  #endif
-  
 
-  //Get stored data from EEPROM
-  //GetEepromValues();
+#if defined(GYRO_CALIBRATE_STARTUP)
+  GYRO_setLevel();
+#endif
 
-}
+#if defined(ACCEL_CALIBRATE)
+  ACCEL_calibrate();
+#endif
+
+#if defined(MAG_CALIBRATE)
+  MAG_calibrate();
+#endif
 
 
-void serialPrint(){
-  
-          Serial.print("UAVTalk State: ");Serial.println(uavtalk_state());
-          Serial.print("Fix Type: ");Serial.println(veh_fix_type);
-          Serial.print("Latitude: ");Serial.println(veh_lat,7);
-          Serial.print("Longitude: ");Serial.println(veh_lon,7);
-          Serial.print("Altitude: ");Serial.println(veh_alt,7);
-          Serial.print("# Sats: ");Serial.println(veh_satellites_visible);
-          
-          Serial.print("Trac Lat: ");Serial.println(trac_lat);
-          Serial.print("Trac Lon: ");Serial.println(trac_lon);
-          Serial.print("Trac Alt: ");Serial.println(trac_alt);          
-          Serial.println();
-          Serial.println();
+  // Check tracker has been calibrated
+  // Tracker will stop at this point if not calibrated
+  checkCaled();
+
 }
 
 
 float DistanceBetween(float lat1, float lon1, float lat2, float lon2){
-  
+
   float ToRad = PI / 180.0;
-  
+
   // Radius of the Earth in meters
   // We do not account for Altitude until elevation angle is calculated.
   float Radius = 6371000;
-  
+
   float dLat = (lat2-lat1) * ToRad;
   float dLon = (lon2-lon1) * ToRad;
-  
+
   float a = sin(dLat/2) * sin(dLat/2) +
-        cos(lat1 * ToRad) * cos(lat2 * ToRad) *
-        sin(dLon/2) * sin(dLon/2);
-        
+    cos(lat1 * ToRad) * cos(lat2 * ToRad) *
+    sin(dLon/2) * sin(dLon/2);
+
   float c = 2 * atan2(sqrt(a), sqrt(1-a));
-  
+
   float distance = Radius * c;
   return distance;
-  
+
 }
 
 
 // Here we get the Elevation angle
-// Error of approx 1 degrees is the best this formula and AVR chip can get
+// Error of approx 1 degrees is the best this formula and AVR chip can get.
+// Taking into account earth gravity effect on radio waves would reduce the error by about 1 degree for every 200km.
+// In saying the above, the AVR chip produces quite a bit of error (only 7 decimal places).
 float ElevationAngle(float distance){
 
   // Convert Radians to Degrees
   float ToDeg = 180.0 / PI;
-  
+
   // Radius of the Earth in meters
   float Radius = 6371000;
-  
+
   float eAngle = ToDeg * ( (veh_alt - trac_alt) / distance - (distance / (2*Radius)) );
-  
+
   // Returning the Elevation Angle 
   return eAngle;
-  
+
 }
 
 // Getting the Azimuth Angle
@@ -137,146 +138,138 @@ float ElevationAngle(float distance){
 float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 
   float AzAngle = 0;
-  
+
   float x = acos( (sin(lat2) - sin(lat1)*cos(distance) ) / (sin(distance)*cos(lat1)) );
- 
+
   if (sin(lon2-lon1) < 0) {
-  AzAngle = x;
+    AzAngle = x;
   }
   else if (sin(lon2-lon1) > 0) {
-  AzAngle = 2 * PI - x;
+    AzAngle = 2 * PI - x;
   }
- 
- return AzAngle;
-  
-}
 
-
-// Here we get the MAG readings and the ACCEL readings and then tilt compensate them.
-// We then get the Declination and compensate the heading for that
-// Returns the Heading from true north
-float Heading(){
-  
-  
-  
-  // Get MAG scaled values
-  byte magValues = MAG_read();
-  
-  // Get ACCEL scaled Values
-  byte accelValues = ACCEL_read();
-  
-  // Get Tilt compensated heading
-  //float headingTiltComp = CalculateHeadingTiltComp(magValues, accelValues);
-  
-  // Get the Declination Angle
-  float declinationAngle = declination.get_declination(trac_lat, trac_lon);
-  
-  // Correct heading by Declination Angle
-  float tnHeading = headingTiltComp + declinationAngle;
-  
-  return tnHeading;
+  return AzAngle;
 
 }
 
-  
-//Get tilt compensated heading
-// Code found here - 
-float CalculateHeadingTiltComp(byte magValues, byte accelValues){
-    
-  // We are swapping the accelerometers axis as they are opposite to the compass the way we have them mounted.
-  // We are swapping the signs axis as they are opposite.
-  // Configure this for your setup.
-  float accX = -acc.YAxis;
-  float accY = -acc.XAxis;
-  
-  float rollRadians = asin(accY);
-  float pitchRadians = asin(accX);
-  
-  // We cannot correct for tilt over 40 degrees with this algorithm, if the board is tilted as such, return 0.
-  if(rollRadians > 0.78 || rollRadians < -0.78 || pitchRadians > 0.78 || pitchRadians < -0.78)
-  {
-    return 0;
-  }
-  
-  // Some of these are used twice, so rather than computing them twice in the algorithem we precompute them before hand.
-  float cosRoll = cos(rollRadians);
-  float sinRoll = sin(rollRadians);  
-  float cosPitch = cos(pitchRadians);
-  float sinPitch = sin(pitchRadians);
-  
-  float Xh = mag.XAxis * cosPitch + mag.ZAxis * sinPitch;
-  float Yh = mag.XAxis * sinRoll * sinPitch + mag.YAxis * cosRoll - mag.ZAxis * sinRoll * cosPitch;
-  
-  float heading = atan2(Yh, Xh);
-    
-  return heading;
-  
-  return tcheading;
-  
-}  
+
+// Here we calculate the Tilt and Roll of the antenna tracker - using Kalman filter in IMU Tab for this
+byte* TiltRoll(byte *data){
+
+  // First 3 values are ACCEL, last 2 are GYRO values
+  double zeroValue[5] = { 0, 0, 0, -32, 254  }; // TODO - Get these values during ACCEL and GYRO calibration.
+
+  /* All the angles start at 180 degrees */
+  double gyroXangle = 180;
+  double gyroYangle = 180;
+
+  double compAngleX = 180.0;
+  double compAngleY = 180.0;
+
+  // Timer for Gyro readings
+  unsigned long timer;
+  timer = micros();
 
 
-// Here we calculate the Tilt and Roll of the antenna tracker
-float TiltRoll(){
+  // Create GYRO array
+  int xyz[3];
+  // Read GYRO Values
+  gyro.readGyroRaw(xyz);
+
+  int gyroRawX = (xyz[0]);
+  int gyroRawY = (xyz[1]);
+  int gyroRawZ = (xyz[2]);
+
+  // Convert Gyro Raw (X) into Gyro Degrees per second
+  double gyroXrate = ((gyroRawX-zeroValue[3])/14.375);
+  gyroXangle += gyroXrate*((double)(micros()-timer)/1000000);
+
+  // Convert Gyro Raw (Y) into Gyro Degrees per second
+  double gyroYrate = ((gyroRawY-zeroValue[4])/14.375);
+  gyroYangle += gyroYrate*((double)(micros()-timer)/1000000);
+
+  double accXangle = getXangle();
+  double accYangle = getYangle();
+
+  double xAngle = kalmanX(accXangle, gyroXrate, (double)(micros() - timer)); // calculate the angle using a Kalman filter
+  double yAngle = kalmanY(accYangle, gyroYrate, (double)(micros() - timer)); // calculate the angle using a Kalman filter
+
+  timer = micros();
+
+  // Put the TILT/ROLL angles into the array
+  data[0] = xAngle;
+  data[1] = yAngle;
+
+  Serial.print("Xangle: ");Serial.print(xAngle);Serial.print("  Yangle: ");Serial.println(yAngle);
   
-  // Get MAG scaled values
-  //float magValues = MAG_read();
-  
-  // Get ACCEL scaled Values
-  //float accelValues = ACCEL_read(); 
- 
+  return data;
+
 }
+
 
 void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHeading){
+
+  // Because most Pan servos can only move 360 degrees max, the midpoint of the servos is the front of the tracker.
+  // If the tracker is pointing East 90 degrees, all measurements will be offset by 90 degrees to keep the maximum
+  // amount of travel available.
+
+  // Correct azimuth for True North Heading (Heading compensated for declination)
+  float correctedAzimuth = azimuth - tnHeading;
+
+  // Correct Elevation angle for Tilt
+  float correctedTilt = eAngle - tilt;
+
+
+  // Mapping Servo Min and Max to the MIN and MAX of the Axis
+  int servoPan = map(correctedAzimuth, 0, 359, PAN_MIN, PAN_MAX);
   
-    // Because most Pan servos can only move 360 degrees max, the midpoint of the servos is the front of the tracker.
-    // If the tracker is pointing East 90 degrees, all measurements will be offset by 90 degrees to keep the maximum
-    // amount of travel available.
-    
-    // Correct azimuth for True North Heading (Heading compensated for declination)
-    float correctedAzimuth = azimuth - tnHeading;
-    
-    // Correct Elevation angle for Tilt
-    float correctedTilt = eAngle - tilt;
-    
-    
-    // Mapping Servo Min and Max to the MIN and MAX of the Axis
-    int servoTilt = map(eangle, 0, 90, TILT_MIN, TILT_MAX);
-    
-    int servoPan = map(correctedAzimuth, 0, 359, PAN_MIN, PAN_MAX);
-    
-    int ServoRoll = map(azimuth, 0, 359, ROLL_MIN, ROLL_MAX);
- 
-    // Moving the Servos
-    TILT.writeMicroseconds(servoTilt);
-    PAN.writeMicroseconds(servoPan);  
-    ROLL.writeMicroseconds(servoRoll);  
+  int servoTilt = map(eAngle, 0, 90, TILT_MIN, TILT_MAX);
+
+  int servoRoll = map(azimuth, 0, 359, ROLL_MIN, ROLL_MAX);
+
+  // Moving the Servos
+  PAN.writeMicroseconds(servoPan);  
+  TILT.writeMicroseconds(servoTilt);
+  ROLL.writeMicroseconds(servoRoll);
+  
+  Serial.print("Pan PWM: ");Serial.println(servoPan);
+  Serial.print("Tilt PWM: ");Serial.println(servoTilt);
+  Serial.print("Roll PWM: ");Serial.println(servoRoll);
+
 }
 
 //The main loop, where everything happens.
 //It is important that this loop be as quick as possible so we don't loose UAVTalk packets.
 void loop(){
-    
-    // Used for Elevation Angle
-    float distanceToHome = DistanceBetween(trac_lat, trac_lon, veh_lat, veh_lon);
-    
-    // Used for Servo Movement
-    float ElevAngle = ElevationAngle(distanceToHome);
-    
-    // Used for Servo Movement
-    float AzAngle = Azimuth(distanceToHome, trac_lat, trac_lon, veh_lat, veh_lon);
-    
-    // Get corrected compass heading
-    float tnHeading = Heading();
-    
-    // Get Tilt & Roll
-    //float tiltDegrees = ACCEL_read()
-    
-    //Servos must be corrected for current front as Zero point.
-    MoveServos(ElevAngle, AzAngle, tiltDegrees, rollDegrees, tnHeading);
-    
-    #if defined (PRINT_TO_SERIAL)
-    serialPrint();
-    #endif
-    }
+
+  // Used for Elevation Angle
+  float distanceToHome = DistanceBetween(trac_lat, trac_lon, veh_lat, veh_lon);
+
+  // Used for Servo Movement
+  float ElevAngle = ElevationAngle(distanceToHome);
+
+  // Used for Servo Movement
+  float AzAngle = Azimuth(distanceToHome, trac_lat, trac_lon, veh_lat, veh_lon);
+  
+  // Get the Declination Angle
+  float declinationAngle = declination.get_declination(trac_lat, trac_lon);  
+
+  // AHRS Array
+  float ypr[3];
+  // Get AHRS data
+  my3IMU.getYawPitchRoll(ypr);
+  
+  // Put Angles array into variables to pass to MoveServos()
+  float pitchDegrees = ypr[1];
+  float rollDegrees = ypr[2];
+  float yawDegrees = ypr[0] + declinationAngle;  
+
+  //Servos must be corrected for current front as Zero point.
+  MoveServos(ElevAngle, AzAngle, tiltDegrees, rollDegrees, yawDegrees);
+
+#if defined (PRINT_TO_SERIAL)
+  serialPrint();
+#endif
+
 }
+

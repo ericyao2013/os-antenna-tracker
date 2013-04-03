@@ -18,11 +18,7 @@
   //#define MAG //Magnometer
   //#define HMC5883L
   //#define HMC5883_ADDRESS 0x1E
-  
-  //Sensor orientation
-  #define ACC_ORIENTATION(X, Y, Z)  {accADC[ROLL]  = -X; accADC[PITCH]  = -Y; accADC[YAW]  =  Z;}
-  #define GYRO_ORIENTATION(X, Y, Z) {gyroADC[ROLL] =  Y; gyroADC[PITCH] = -X; gyroADC[YAW] = -Z;}
-  #define MAG_ORIENTATION(X, Y, Z)  {magADC[ROLL]  =  Y; magADC[PITCH]  = -X; magADC[YAW]  = -Z;}
+
 #endif
 
 /******************************************************************************/
@@ -159,15 +155,29 @@
 // 2 bytes per value
 /******************************************************************************/
 
-// MAG Min and Max calibration values
-#define MAG_MIN_X_ADDR 0
-#define MAG_MAX_X_ADDR 2
-#define MAG_MIN_Y_ADDR 4
-#define MAG_MAX_Y_ADDR 6
-#define MAG_MIN_Z_ADDR 8
-#define MAG_MAX_Z_ADDR 10
+// Calibration Flag address
 
-// ACCEL LEVEL Values
-#define ACCEL_OFFSET_X_ADDR 12
-#define ACCEL_OFFSET_Y_ADDR 14
-#define ACCEL_OFFSET_Z_ADDR 16
+
+// MAG Min and Max calibration EEPROM locations
+#define MAG_CAL_FLAG_ADDR 0
+#define MAG_MIN_X_ADDR 2
+#define MAG_MAX_X_ADDR 4
+#define MAG_MIN_Y_ADDR 6
+#define MAG_MAX_Y_ADDR 8
+#define MAG_MIN_Z_ADDR 10
+#define MAG_MAX_Z_ADDR 12
+
+// ACCEL Min and Max calibration EEPROM locations
+#define ACCEL_CAL_FLAG_ADDR 14
+#define ACCEL_MIN_X_ADDR 16
+#define ACCEL_MAX_X_ADDR 18
+#define ACCEL_MIN_Y_ADDR 20
+#define ACCEL_MAX_Y_ADDR 22
+#define ACCEL_MIN_Z_ADDR 24
+#define ACCEL_MAX_Z_ADDR 26
+
+// GYRO Min and Max Calibation EEPROM locations
+#define GYRO_CAL_FLAG_ADDR 28
+#define GYRO_ZERO_X_ADDR 30
+#define GYRO_ZERO_Y_ADDR 32
+#define GYRO_ZERO_Z_ADDR 34

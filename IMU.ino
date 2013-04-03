@@ -1,4 +1,23 @@
-// The below code is not currently used.
+// IMU Explanation.
+
+// To get the correct measurements each sensor axis (Gyro, Mag, Accel) must be calibrated around a single center point (zero value) for each sensor.
+
+//MAG
+// Mag needs to be calibrated so there is a Min and Max for each axis. This allows us to bring the measurements to be 3 circles (x axis, y axis, z axis) centered around a single point.
+// Mag's measure the earths magnetic field so simply rotating it around all axis will give you the Min and Max.
+
+//ACCEL
+// Accel measures acceleration. While stationary the accel measures the earths gravity. When an Accel is stationary and flat one axis will measure 1G.
+// To calibrate an Accel you need to get the Min and Max fr each axis. You cannot rotate it and read the Min and Max (like Mag) because the movement will be measured and you won't get a Min and Max value.
+// Accels need to have their Min and Max value measured while stationary. This is why you align an axis pointing directly up and directly down.
+
+//GYRO
+// Gyros measure the rate of rotation. To calibrate you don't need to worry about moving it about all its axis to get a Min and Max.
+// We just need to know the values when the Gyro is stationary (its zero point).
+//
+
+
+
 
 // Below code found here - https://github.com/TKJElectronics/Example-Sketch-for-IMU-including-Kalman-filter/tree/master/IMU6DOF/ITG3205_ADXL345
 
@@ -16,11 +35,6 @@ double dtX, yX, SX;
 double KX_0, KX_1;
 
 double kalmanX(double newAngle, double newRate, double dtime) {
-  // KasBot V2  -  Kalman filter module - http://www.arduino.cc/cgi-bin/yabb2/YaBB.pl?num=1284738418
-  // See also http://www.x-firm.com/?page_id=145
-  // with slightly modifications by Kristian Lauszus
-  // See http://academic.csuohio.edu/simond/courses/eec644/kalman.pdf and 
-  // http://www.cs.unc.edu/~welch/media/pdf/kalman_intro.pdf for more information
   dtX = dtime / 1000000; // Convert from microseconds to seconds
 
   // Discrete Kalman filter time update equations - Time Update ("Predict")
@@ -68,11 +82,7 @@ double dtY, yY, SY;
 double KY_0, KY_1;
 
 double kalmanY(double newAngle, double newRate, double dtime) {
-  // KasBot V2  -  Kalman filter module - http://www.arduino.cc/cgi-bin/yabb2/YaBB.pl?num=1284738418
-  // See also http://www.x-firm.com/?page_id=145
-  // with slightly modifications by Kristian Lauszus
-  // See http://academic.csuohio.edu/simond/courses/eec644/kalman.pdf and 
-  // http://www.cs.unc.edu/~welch/media/pdf/kalman_intro.pdf for more information
+
   dtY = dtime / 1000000; // Convert from microseconds to seconds
 
   // Discrete Kalman filter time update equations - Time Update ("Predict")
@@ -103,4 +113,45 @@ double kalmanY(double newAngle, double newRate, double dtime) {
   PY_11 -= KY_1 * PY_01;
 
   return angleY;
+}
+
+double getXangle() {
+
+  
+  // First 3 values are ACCEL, last 2 are GYRO values
+  double zeroValue[5] = { 0, 0, 0, -32, 254  }; // TODO - Get these values during ACCEL and GYRO calibration.
+
+  int xyz[3];
+  accel.readAccel(xyz);
+  
+  //Serial.print("Accel Data x: ");Serial.print(xyz[0]);Serial.print("y: ");Serial.print(xyz[1]);Serial.print("x: ");Serial.println(xyz[2]);
+  
+  float accelX = (xyz[0]/8191.0 * 2);
+  float accelZ = (xyz[2]/8191.0 * 2);
+
+  //Serial.print("Accel X");Serial.print(accelX);
+  
+  double accXval = (double)accelX-zeroValue[0];
+  double accZval = (double)accelZ-zeroValue[2];
+  double angle = (atan2(accXval,accZval)+PI)*RAD_TO_DEG;
+  return angle;
+}
+
+//
+double getYangle() {
+
+  // First 3 values are ACCEL, last 2 are GYRO values
+  double zeroValue[5] = { 0, 0, 0, -32, 254  }; // TODO - Get these values during ACCEL and GYRO calibration.
+  
+  int xyz[3];
+  accel.readAccel(xyz);
+  float accelY = (xyz[1]/8191.0 * 2);
+  float accelZ = (xyz[2]/8191.0 * 2);
+  
+  //Serial.print("Accel Y");Serial.print(accelY);Serial.print("Accel Z");Serial.println(accelZ);
+
+  double accYval = (double)accelY-zeroValue[1];
+  double accZval = (double)accelZ-zeroValue[2];
+  double angle = (atan2(accYval,accZval)+PI)*RAD_TO_DEG;
+  return angle;
 }

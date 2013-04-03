@@ -1,8 +1,7 @@
 /******************************************************************************/
 /******************           Initial Setup           *************************/
 /******************************************************************************/
-#define CALIBRATE_MAG
-#define INIT_MTK_GPS
+//#define CALIBRATE_MAG
 #define GYRO_CALIBRATE_STARTUP
 //#define SET_LEVEL - Used for ACCEL, which I am not using at the moment.
 //#define PRINT_TO_SERIAL //Should only be used for debugging.
@@ -71,20 +70,18 @@
 //Should stay uncommented as its required for tracker to work.
 #define GPS
 
-//GPS Type
-#define GPS_TYPE MTK3329 
-//#define OTHER_GPS//TODO
-
 //GPS Protocol
-#define NMEA
+#define NMEA //The only supported protocol at the moment
 //#define UBLOX //TODO
 
-//GPS Connection options
-#define GPS_SERIAL
+
+
+//GPS Connection options - not options, just placeholders for TODO
+//#define GPS_SERIAL
 //#define GPS_I2C //TODO
 
 //Serial Options
-#define GPS_SERIAL 2
+//#define GPS_SERIAL 2 - not really an option, just a placeholder for a TODO
 #define GPS_BAUD 115200
 
 
@@ -132,9 +129,12 @@ static long MAG_MIN_Z = 0;
 static long MAG_MAX_Z = 0;
 
 // ACCEL calibration values
-static long ACCEL_OFFSET_X = 0;
-static long ACCEL_OFFSET_Y = 0;
-static long ACCEL_OFFSET_Z = 0;
+static long ACCEL_MIN_X = 0;
+static long ACCEL_MAX_X = 0;
+static long ACCEL_MIN_Y = 0;
+static long ACCEL_MAX_Y = 0;
+static long ACCEL_MIN_Z = 0;
+static long ACCEL_MAX_Z = 0;
 
 //Generic Variables
 static long previousMillis = 0;

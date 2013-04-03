@@ -1,16 +1,7 @@
-void MAG_init();
+void MAG_init(){
 
   mag.SetScale(1.3);
   mag.SetMeasurementMode(Measurement_Continuous);
-  
-  // If you have selected to calibrate the MAG
-  #if defined(CALIBRATE_MAG)
-  MAG_calibrate();
-  #endif
-  
-  // Read the MAG calibration values
-  // Values are set when the MAG is calibrated
-  readMagCalibration();
   
 }
 
@@ -24,43 +15,51 @@ void MAG_calibrate(void) {
   Serial.println("Calibration will run for 30 seconds");
   delay(2000);
   Serial.println();
+  // Countdown for Calibrate
   for (int cc = 1; cc < 6; cc++){
     Serial.print("Calibration Starting in ");Serial.print(6-cc);Serial.println(" seconds");
     delay(1000);
   }
-  Serial.println("Calibration Started");
-           
-        //delay(5000);  //wait a couple seconds for operator to get arrow ponted north
-        //delayMillis = millis() + 2000;
-        for(int x=millis(); x<millis()+30000 ; x = +millis())  //continualy read the raw axis data while waiting for operator to slowly rotate compass to next position
-        {
-          magraw = mag.ReadRawAxis();
-          scaled = mag.ReadScaledAxis();               
-          compassMaxMin(scaled.XAxis, scaled.YAxis);  //look for max and min values
-          calibrationOutput();  //output current data as calibration proceeds
-          delay(20);
-        }
-       
-  calcScaleFactor_Offset();
-  calibrationComplete();  //output the resulting values from calibration   
-  storeMagCalibration();    //save the calculated x & y offset and scale factor
-  Serial.println();
-  Serial.println("*************************************************************");
-  delay(1000);
-  Serial.println("Magnetometer has been calibrated");
-  delay(1000);
-  Serial.println("Please comment out CALIBRATE_MAG and reload the board software");
-  delay(5000);  
+  
+  Serial.println("Calibration Started");    
+    
+    // Reads the Mag Raw Axis
+    for(int x= millis(); x< millis() + 30000 ; x = +millis())
+    {
+      
+      Serial.println(x);
+      magRaw = mag.ReadRawAxis();
+      magScaled = mag.ReadScaledAxis();
+  
+      
+      magMinMax(magScaled.XAxis, magScaled.YAxis);
+      magCalibrationOutput();
+      delay(10);
+    }
+    
+    magCalcScaleFactor_Offset();
+    magCalibrationComplete();
+    storeMagCalibration();    //save the calculated x & y offset and scale factor
+    Serial.println();
+    Serial.println("*************************************************************");
+    delay(1000);
+    Serial.println("Magnetometer has been calibrated");
+    delay(1000);
+    Serial.println("Please comment out CALIBRATE_MAG and reload the board software");
+    delay(5000);  
   
 }
 
-
-//used calibrating hmc5883l compass
+// Get Min and Max MAG readings for calibration
 //*******************************************************
-void compassMaxMin(int xRaw, int yRaw)
+void magMinMax(int xRaw, int yRaw)
 {
-  if(xRaw>800 || xRaw<-800 || yRaw>800 || yRaw<-800)
-    return; //prevent extraneous high readings from messing with calibration
+  
+  int maxReading = 800; // You can change this if you want.
+  
+  // If the readings are too high, drop them.
+  if(xRaw > maxReading || xRaw<-maxReading || yRaw>maxReading || yRaw<-maxReading)
+    return;
    
   if(xRaw > xMax)
     xMax = xRaw;
@@ -76,10 +75,7 @@ void compassMaxMin(int xRaw, int yRaw)
    
 }
 
-//*******************************************************************
-//calculate the x&y scale factor and offsets for hmc5883l
-//compensates for objects around sensor distorting magnetometer values
-void calcScaleFactor_Offset()
+void magCalcScaleFactor_Offset()
 {
   xScaleFactor = (yMax - yMin)/(xMax - xMin);
   if(xScaleFactor < 1)
@@ -94,11 +90,62 @@ void calcScaleFactor_Offset()
    
 }
 
+
+
+void magCalibrationOutput()
+{
+  //raw magnetometer x&y values
+  Serial.print("RawMag x=");
+  Serial.print(magRaw.XAxis);
+  Serial.print(",y=");
+  Serial.print(magRaw.YAxis);
+  Serial.print(" ");
+  //mag values scled with gause gain setting 
+  Serial.print("ScaledMag x=");
+  Serial.print(magScaled.XAxis);
+  Serial.print(",y=");
+  Serial.print(magScaled.YAxis);
+  Serial.print(" "); 
+  //current max min value as calibration proceeds
+  Serial.print(" xMax=");
+  Serial.print(xMax);
+  Serial.print(",yMax=");
+  Serial.print(yMax);
+  Serial.print(", xMin=");
+  Serial.print(xMin);
+  Serial.print(", yMin=");
+  Serial.println(yMin);
+
+}
+
+void magCalibrationComplete()
+{
+  //min/max values found
+  Serial.print("MaxMin xMax=");
+  Serial.print(xMax);
+  Serial.print(",yMax=");
+  Serial.print(yMax);
+  Serial.print(", xMin=");
+  Serial.print(xMin);
+  Serial.print(", yMin=");
+  Serial.print(yMin);
+  //calculated offset and scale factors
+  Serial.print("xScale=");
+  Serial.print(xScaleFactor);
+  Serial.print(",yScale=");
+  Serial.print(yScaleFactor);
+  Serial.print(", XOffset=");
+  Serial.print(compassXOffset);
+  Serial.print(", YOffset=");
+  Serial.print(compassYOffset); 
+
+}
+
 /*************************************************************************/
 //save calibration data to eeprom
 void storeMagCalibration(){
   //write x & y scale factors and offsets to eeprom 
-    EEPROM.write(0,lowByte(compassXOffset));   
+    EEPROM.write(0,lowByte(compassXOffset));
     EEPROM.write(1,highByte(compassXOffset));
    
     EEPROM.write(2,lowByte(compassYOffset));   
@@ -116,9 +163,9 @@ void storeMagCalibration(){
 // Read calibration data from eeprom
 void readMagCalibration(){
  
-  compassXOffset = (EEPROM.read(1) * 256) + EEPROM.read(0);
-  compassYOffset = (EEPROM.read(3) * 256) + EEPROM.read(2);
-  xScaleFactor = (EEPROM.read(5) * 256) + EEPROM.read(4);
-  yScaleFactor = (EEPROM.read(7) * 256) + EEPROM.read(6);
+  int compassXOffset = (EEPROM.read(1) * 256) + EEPROM.read(0);
+  int compassYOffset = (EEPROM.read(3) * 256) + EEPROM.read(2);
+  int xScaleFactor = (EEPROM.read(5) * 256) + EEPROM.read(4);
+  int yScaleFactor = (EEPROM.read(7) * 256) + EEPROM.read(6);
  
 }
