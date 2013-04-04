@@ -257,7 +257,7 @@ void loop(){
   // AHRS Array
   float ypr[3];
   // Get AHRS data
-  my3IMU.getYawPitchRoll(ypr);
+  //my3IMU.getYawPitchRoll(ypr);
   
   // Put Angles array into variables to pass to MoveServos()
   float pitchDegrees = ypr[1];
@@ -265,7 +265,7 @@ void loop(){
   float yawDegrees = ypr[0] + declinationAngle;  
 
   //Servos must be corrected for current front as Zero point.
-  MoveServos(ElevAngle, AzAngle, tiltDegrees, rollDegrees, yawDegrees);
+  MoveServos(ElevAngle, AzAngle, pitchDegrees, rollDegrees, yawDegrees);
 
 #if defined (PRINT_TO_SERIAL)
   serialPrint();
