@@ -1,6 +1,4 @@
-// Acceleromters detect acceleration but they detect it in the opposite direction to the acceleration.
-// For example if you were accelerating towards the Y positive, the acceleration would be a Y negative value.
-
+// Initialise BMA180
 void ACCEL_init(){
   
   accel.setAddress(BMA180_ADDRESS_SDO_LOW);
@@ -19,7 +17,7 @@ void ACCEL_init(){
 void ACCEL_calibrate(){
   
   // Accel XYZ array
-  int xyz[3];
+  int axyz[3];
   
   //Number of readings to average
   int number = 2500;
@@ -29,37 +27,37 @@ void ACCEL_calibrate(){
   float averageY = 0;
   float averageZ = 0;
 
-  Serial.print("Accelerometer 6 point calibration");
+  Serial.println("Accelerometer 6 point calibration");
   delay(1000);
-  Serial.print("There is no order of calibration - just keep flipping the board until all axis' are calibrated");
+  Serial.println("There is no order of calibration - just keep flipping the board until all axis' are calibrated");
   delay(1000);
-  Serial.print("After each axis is calibrated, move the board to calibrate the next axis");
+  Serial.println("After each axis is calibrated, move the board to calibrate the next axis");
   delay(1000);
-  Serial.print("If you bump the board while calibrating, let it be recalibrated");
+  Serial.println("If you bump the board while calibrating, let it be recalibrated");
   delay(1000);  
-  Serial.print("Calibration will exit once all sides are calibrated");
+  Serial.println("Calibration will exit once all sides are calibrated");
   delay(1000);
-  Serial.print("IMPORTANT: Do not bump or move the board while calibration is running");
+  Serial.println("IMPORTANT: Do not bump or move the board while calibration is running");
   delay(1000);
-  Serial.print("Lay board flat now....");  
+  Serial.println("Lay board flat now....");  
   
   // Give the Accel internal LPF time to warm up
   // Only do 1/5th of the number of readings
-  for (int j = 0; j < number/5; j ++){
-    accel.readAccel(xyz);
+  for (int j = 0; j < number / 5; j ++){
+    accel.readAccel(axyz);
     delay(3);
     
   }
   
-    // Calibration flag variables
-  int XMincalibrated = 0;
-  int XMaxcalibrated = 0;
-  int YMincalibrated = 0;
-  int YMaxcalibrated = 0;
-  int ZMincalibrated = 0;
-  int ZMaxcalibrated = 0;
+  // Calibration variables
+  float xMin = 0;
+  float xMax = 0;
+  float yMin = 0;
+  float yMax = 0;
+  float zMin = 0;
+  float zMax = 0;
   
-   while (XMincalibrated == 0 || XMaxcalibrated == 0 || YMincalibrated == 0 || YMaxcalibrated == 0 || ZMincalibrated == 0 || ZMaxcalibrated == 0){
+   while (xMin == 0 || xMax == 0 || yMin == 0 || yMax == 0 || zMin == 0 || zMax == 0){
     
     long accelSumX = 0;
     long accelSumY = 0;
@@ -68,16 +66,16 @@ void ACCEL_calibrate(){
     for (int i = 0; i < 10; i ++){
       Serial.print("Calibrating Axis in ");Serial.println(10-i);
       delay(1000);
-      Serial.println("Calibrating");
     }
+    Serial.println("Calibrating......");
     
     // Take 2500 readings and average them.
-    for (int j = 0; j < 2500; j ++){
-      accel.readAccel(xyz);
+    for (int j = 0; j < number; j ++){
+      accel.readAccel(axyz);
       
-      accelSumX += xyz[0];
-      accelSumY += xyz[1];
-      accelSumZ += xyz[2];
+      accelSumX += axyz[0];
+      accelSumY += axyz[1];
+      accelSumZ += axyz[2];
       
       delay(3);
     }
@@ -88,13 +86,11 @@ void ACCEL_calibrate(){
       // Sensing negative value
       if (averageX < 0) {
         Serial.print("Min X: ");Serial.println(averageX);
-        eeprom_write(ACCEL_MIN_X_ADDR, averageX);
-        XMincalibrated = 1;
+        xMin = averageX;
       }
         else{
         Serial.print("Max X: ");Serial.println(averageX);
-        eeprom_write(ACCEL_MAX_X_ADDR, averageX);
-        XMaxcalibrated = 1;
+        xMax = averageX;
         }
     }
     // Y axis is the side thats experiencing +1G or -1G  
@@ -103,13 +99,11 @@ void ACCEL_calibrate(){
     // if sensing negative value
     if (averageY < 0) {
         Serial.print("Min Y: ");Serial.println(averageY);
-        eeprom_write(ACCEL_MIN_Y_ADDR, averageY);
-        YMincalibrated = 1;
+        yMin = averageY;
     }
       else{
         Serial.print("Max Y: ");Serial.println(averageY);
-        YMaxcalibrated = 1;
-        delay(1000);
+        yMax = averageY;
       }
     }
     // Z axis is the side thats experiencing +1G or -1G  
@@ -118,29 +112,92 @@ void ACCEL_calibrate(){
     // if sensing negative value
     if (averageZ < 0) {
         Serial.print("Min Z: ");Serial.println(averageZ);
-        ZMincalibrated = 1;
+        zMin = averageZ;
     }
       else{
         Serial.print("Max Z: ");Serial.println(averageZ);
-        ZMaxcalibrated = 1;
+        zMax = averageZ;
       }   
     }
   }
-    
+  
+  // We need the total range to calculate the offset and scale
+  int acc_range_x = (abs(xMin) + abs(xMax));
+  int acc_range_y = (abs(yMin) + abs(yMax));
+  int acc_range_z = (abs(zMin) + abs(zMax));
+  
+  // Scale over 1G so divide by 2 as the total range is 2G
+  acc_scale_x = acc_range_x / 2;
+  acc_scale_y = acc_range_y / 2;
+  acc_scale_z = acc_range_z / 2;
+  
+  acc_off_x =  xMax - (acc_range_x / 2);
+  acc_off_y =  yMax - (acc_range_y / 2);
+  acc_off_z =  zMax - (acc_range_z / 2);
+
+  // Save calibration data
+  //eeprom_write(ACCEL_CAL_FLAG_ADDR, 1);
   
   Serial.println("Accel Calibration Done.");
-  delay(1000);  
-  // Save calibration data
-  eeprom_write(ACCEL_CAL_FLAG_ADDR, 1);
+  delay(1000);
+  //Save calibration data to EEPROM
+  Serial.println("Saving Calibration data");
+  Serial.print("Accel Offset X: ");Serial.print(acc_off_x);Serial.print("  ");
+  Serial.print("Accel Offset Y: ");Serial.print(acc_off_y);Serial.print("  ");
+  Serial.print("Accel Offset Z: ");Serial.println(acc_off_z);
+  Serial.print("Accel Scale X: ");Serial.print(acc_scale_x);Serial.print("  ");
+  Serial.print("Accel Scale Y: ");Serial.print(acc_scale_y);Serial.print("  ");
+  Serial.print("Accel Scale Z: ");Serial.println(acc_scale_z);
 
-  eeprom_write(ACCEL_MAX_X_ADDR 18
-  eeprom_write(ACCEL_MIN_Y_ADDR 20
-  eeprom_write(ACCEL_MAX_Y_ADDR 22
-  eeprom_write(ACCEL_MIN_Z_ADDR 24
-  eeprom_write(ACCEL_MAX_Z_ADDR 26
-  
-  delay(2000);
-  
 }
 
-
+void ACCEL_calibrateQ(){
+ 
+  // Accel has a max range of 8192 per G (or 2 x 8191).
+  float accelRange = 8191 / 2;
+  
+  long accelSumX = 0;
+  long accelSumY = 0;
+  long accelSumZ = 0;  
+  
+  // Accel XYZ array
+  int axyz[3];
+  
+  //Number of readings to average
+  int number = 2500;
+  
+  delay(1000);
+  Serial.println("Accel Calibration (quick) - DO NOT MOVE BOARD");
+  
+  // Take 2500 readings and average them.
+  for (int j = 0; j < number; j ++){
+    accel.readAccel(axyz);
+    
+    accelSumX += axyz[0];
+    accelSumY += axyz[1];
+    accelSumZ += axyz[2];
+    
+    delay(3);
+  }
+  
+  // Scale over 1G so divide by 2 as the total range is 2G
+  acc_scale_x = accelRange;
+  acc_scale_y = accelRange;
+  acc_scale_z = accelRange;
+  
+  acc_off_x =  accelSumX / number;
+  acc_off_y =  accelSumY / number;
+  acc_off_z =  (abs(accelSumZ) / number) - accelRange;
+  
+  Serial.println("Accel Calibration Done.");
+  delay(1000);
+  Serial.println("Saving Calibration data");
+  //Save calibration data to EEPROM
+  Serial.print("Accel Offset X: ");Serial.print(acc_off_x);Serial.print("  ");
+  Serial.print("Accel Offset Y: ");Serial.print(acc_off_y);Serial.print("  ");
+  Serial.print("Accel Offset Z: ");Serial.println(acc_off_z);
+  Serial.print("Accel Scale X: ");Serial.print(acc_scale_x);Serial.print("  ");
+  Serial.print("Accel Scale Y: ");Serial.print(acc_scale_y);Serial.print("  ");
+  Serial.print("Accel Scale Z: ");Serial.println(acc_scale_z);
+  
+}

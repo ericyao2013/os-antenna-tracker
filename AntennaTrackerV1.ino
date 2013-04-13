@@ -9,6 +9,8 @@
 #include "Config.h"
 //Definitions file - no user configurable options.
 #include "Defs.h"
+//Variables file - no user configurable options.
+#include "Vars.h"
 //UAVTalk Version information file
 #include "UAVTalk.h"
 //Arduino Library for complex Math functions
@@ -20,9 +22,9 @@
 // Declination library
 #include "AP_Declination.h"
 // TinyGPS Library
-#include "TinyGPS.h"
+#include <TinyGPS.h>
 // HMC5883L Library
-#include "HMC5883L.h"
+#include "HMC58X3.h"
 // BMA180 Library
 #include "bma180.h"
 // IT3200 Library - ITG3205 uses the same library
@@ -33,9 +35,9 @@
 AP_Declination declination;
 // TinyGPS object
 TinyGPS gps;
-void getgps(TinyGPS &gps); // No idea what this does - seems to be an array return
+//void getgps(TinyGPS &gps); // No idea what this does - seems to be an array return
 // HMC5883L object
-HMC5883L mag = HMC5883L();
+HMC58X3 mag = HMC58X3();
 // BMA180 object
 BMA180 accel = BMA180();
 // ITG3200 object
@@ -61,7 +63,9 @@ void setup(){
   //Initialising the i2c interface
   Wire.begin();
 
+  // Attach/Setup Servos
   PAN.attach(PAN_PIN);
+  TILT.attach(TILT_PIN);
   TILT.attach(TILT_PIN);
 
   // Initialise the ACCEL
@@ -72,11 +76,12 @@ void setup(){
   GYRO_init();
 
 #if defined(GYRO_CALIBRATE_STARTUP)
-  GYRO_setLevel();
+  GYRO_calibrate();
 #endif
 
 #if defined(ACCEL_CALIBRATE)
-  ACCEL_calibrate();
+  //ACCEL_calibrate(); // 6 Point calibration
+  ACCEL_calibrateQ(); // Quick level calibration
 #endif
 
 #if defined(MAG_CALIBRATE)
@@ -86,7 +91,7 @@ void setup(){
 
   // Check tracker has been calibrated
   // Tracker will stop at this point if not calibrated
-  checkCaled();
+  //checkCaled();
 
 }
 
@@ -152,61 +157,6 @@ float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 
 }
 
-
-// Here we calculate the Tilt and Roll of the antenna tracker - using Kalman filter in IMU Tab for this
-byte* TiltRoll(byte *data){
-
-  // First 3 values are ACCEL, last 2 are GYRO values
-  double zeroValue[5] = { 0, 0, 0, -32, 254  }; // TODO - Get these values during ACCEL and GYRO calibration.
-
-  /* All the angles start at 180 degrees */
-  double gyroXangle = 180;
-  double gyroYangle = 180;
-
-  double compAngleX = 180.0;
-  double compAngleY = 180.0;
-
-  // Timer for Gyro readings
-  unsigned long timer;
-  timer = micros();
-
-
-  // Create GYRO array
-  int xyz[3];
-  // Read GYRO Values
-  gyro.readGyroRaw(xyz);
-
-  int gyroRawX = (xyz[0]);
-  int gyroRawY = (xyz[1]);
-  int gyroRawZ = (xyz[2]);
-
-  // Convert Gyro Raw (X) into Gyro Degrees per second
-  double gyroXrate = ((gyroRawX-zeroValue[3])/14.375);
-  gyroXangle += gyroXrate*((double)(micros()-timer)/1000000);
-
-  // Convert Gyro Raw (Y) into Gyro Degrees per second
-  double gyroYrate = ((gyroRawY-zeroValue[4])/14.375);
-  gyroYangle += gyroYrate*((double)(micros()-timer)/1000000);
-
-  double accXangle = getXangle();
-  double accYangle = getYangle();
-
-  double xAngle = kalmanX(accXangle, gyroXrate, (double)(micros() - timer)); // calculate the angle using a Kalman filter
-  double yAngle = kalmanY(accYangle, gyroYrate, (double)(micros() - timer)); // calculate the angle using a Kalman filter
-
-  timer = micros();
-
-  // Put the TILT/ROLL angles into the array
-  data[0] = xAngle;
-  data[1] = yAngle;
-
-  Serial.print("Xangle: ");Serial.print(xAngle);Serial.print("  Yangle: ");Serial.println(yAngle);
-  
-  return data;
-
-}
-
-
 void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHeading){
 
   // Because most Pan servos can only move 360 degrees max, the midpoint of the servos is the front of the tracker.
@@ -219,7 +169,6 @@ void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHea
   // Correct Elevation angle for Tilt
   float correctedTilt = eAngle - tilt;
 
-
   // Mapping Servo Min and Max to the MIN and MAX of the Axis
   int servoPan = map(correctedAzimuth, 0, 359, PAN_MIN, PAN_MAX);
   
@@ -231,16 +180,14 @@ void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHea
   PAN.writeMicroseconds(servoPan);  
   TILT.writeMicroseconds(servoTilt);
   ROLL.writeMicroseconds(servoRoll);
-  
-  Serial.print("Pan PWM: ");Serial.println(servoPan);
-  Serial.print("Tilt PWM: ");Serial.println(servoTilt);
-  Serial.print("Roll PWM: ");Serial.println(servoRoll);
 
 }
 
 //The main loop, where everything happens.
 //It is important that this loop be as quick as possible so we don't loose UAVTalk packets.
 void loop(){
+  
+  getGPS();
 
   // Used for Elevation Angle
   float distanceToHome = DistanceBetween(trac_lat, trac_lon, veh_lat, veh_lon);
@@ -256,8 +203,8 @@ void loop(){
 
   // AHRS Array
   float ypr[3];
-  // Get AHRS data
-  //my3IMU.getYawPitchRoll(ypr);
+  // Get AHRS data - Yaw, Pitch, Roll
+  getYawPitchRoll(ypr);
   
   // Put Angles array into variables to pass to MoveServos()
   float pitchDegrees = ypr[1];

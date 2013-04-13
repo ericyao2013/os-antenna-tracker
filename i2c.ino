@@ -6,7 +6,7 @@
 //TWBR = ((F_CPU / 400000L) - 16) / 2; // change the I2C clock rate to 400kHz
 
 // i2c usage - Delay should be called outside these functions if required.
-
+/*
 void i2c_write(byte address, byte reg, byte data){
    Wire.beginTransmission(address);
    Wire.write(reg);  

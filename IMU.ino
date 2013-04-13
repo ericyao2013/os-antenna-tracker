@@ -1,157 +1,249 @@
-// IMU Explanation.
+void getValues(float * values) {
+  
+  //accel array
+  int axyz[3];
+  
+  // Get Accel Raw values
+  accel.readAccel(axyz);
+  values[0] = axyz[0];
+  values[1] = axyz[1];
+  values[2] = axyz[2];
+  
+  // remove offsets and scale accelerometer (calibration)
+  values[0] = (values[0] - acc_off_x) / acc_scale_x;
+  values[1] = (values[1] - acc_off_y) / acc_scale_y;
+  values[2] = (values[2] - acc_off_z) / acc_scale_z;
+  
+  //Serial.print("SaccelX: ");Serial.print(acc_scale_x);Serial.print("  ");Serial.print("SaccelY: ");Serial.print(acc_scale_y);Serial.print("  ");Serial.print("SaccelZ: ");Serial.println(acc_scale_z);
+  //Serial.print("accelX: ");Serial.print(values[0]);Serial.print("  ");Serial.print("accelY: ");Serial.print(values[1]);Serial.print("  ");Serial.print("accelZ: ");Serial.println(values[2]);
+  
+  // Gyro ********************************************
+  
+  //gyro array
+  int gxyz[3];
+  
+  // Get Gyro Raw values
+  gyro.readGyroRaw(gxyz);
 
-// To get the correct measurements each sensor axis (Gyro, Mag, Accel) must be calibrated around a single center point (zero value) for each sensor.
+  
+  // Correct the Raw values for Offset, convert to Degrees/s then to radians
+  values[3] = ((gxyz[0] - gyro_off_x) / 14.375) * DEG_TO_RAD;
+  values[4] = ((gxyz[1] - gyro_off_y) / 14.375) * DEG_TO_RAD;
+  values[5] = ((gxyz[2] - gyro_off_z) / 14.375) * DEG_TO_RAD;
+  
+  //Serial.print("gyroX: ");Serial.print(values[3]);Serial.print("  ");Serial.print("gyroY: ");Serial.print(values[4]);Serial.print("  ");Serial.print("gyroZ: ");Serial.println(values[5]);
+  
+  // Magnometer ********************************************
+  
+  //mag array
+  int mxyz[3];
+  
+  // Get Mag Raw values
+  mag.getRaw(&mxyz[0], &mxyz[1], &mxyz[2]);
+    
+  // Correct Mag Values for offset and scale
+  values[6] = (mxyz[0] - magn_off_x) / magn_scale_x;
+  values[7] = (mxyz[1] - magn_off_y) / magn_scale_y;
+  values[8] = (mxyz[2] - magn_off_z) / magn_scale_z;
 
-//MAG
-// Mag needs to be calibrated so there is a Min and Max for each axis. This allows us to bring the measurements to be 3 circles (x axis, y axis, z axis) centered around a single point.
-// Mag's measure the earths magnetic field so simply rotating it around all axis will give you the Min and Max.
+  //Serial.print("magX: ");Serial.print(values[6]);Serial.print("  ");Serial.print("magY: ");Serial.print(values[7]);Serial.print("  ");Serial.print("magZ: ");Serial.println(values[8]);
+  //delay(500);
 
-//ACCEL
-// Accel measures acceleration. While stationary the accel measures the earths gravity. When an Accel is stationary and flat one axis will measure 1G.
-// To calibrate an Accel you need to get the Min and Max fr each axis. You cannot rotate it and read the Min and Max (like Mag) because the movement will be measured and you won't get a Min and Max value.
-// Accels need to have their Min and Max value measured while stationary. This is why you align an axis pointing directly up and directly down.
-
-//GYRO
-// Gyros measure the rate of rotation. To calibrate you don't need to worry about moving it about all its axis to get a Min and Max.
-// We just need to know the values when the Gyro is stationary (its zero point).
-//
-
-
-
-
-// Below code found here - https://github.com/TKJElectronics/Example-Sketch-for-IMU-including-Kalman-filter/tree/master/IMU6DOF/ITG3205_ADXL345
-
-// KalmanX
-
-/* Kalman filter variables and constants */
-const double Q_angleX = 0.001; // Process noise covariance for the accelerometer - Sw
-const double Q_gyroX = 0.003; // Process noise covariance for the gyro - Sw
-const double R_angleX = 0.03; // Measurement noise covariance - Sv
-
-double angleX = 180; // The angle output from the Kalman filter
-double biasX = 0; // The gyro bias calculated by the Kalman filter
-double PX_00 = 0, PX_01 = 0, PX_10 = 0, PX_11 = 0;
-double dtX, yX, SX;
-double KX_0, KX_1;
-
-double kalmanX(double newAngle, double newRate, double dtime) {
-  dtX = dtime / 1000000; // Convert from microseconds to seconds
-
-  // Discrete Kalman filter time update equations - Time Update ("Predict")
-  // Update xhat - Project the state ahead
-  angleX += dtX * (newRate - biasX);
-
-  // Update estimation error covariance - Project the error covariance ahead
-  PX_00 += -dtX * (PX_10 + PX_01) + Q_angleX * dtX;
-  PX_01 += -dtX * PX_11;
-  PX_10 += -dtX * PX_11;
-  PX_11 += +Q_gyroX * dtX;
-
-  // Discrete Kalman filter measurement update equations - Measurement Update ("Correct")
-  // Calculate Kalman gain - Compute the Kalman gain
-  SX = PX_00 + R_angleX;
-  KX_0 = PX_00 / SX;
-  KX_1 = PX_10 / SX;
-
-  // Calculate angle and resting rate - Update estimate with measurement zk
-  yX = newAngle - angleX;
-  angleX += KX_0 * yX;
-  biasX += KX_1 * yX;
-
-  // Calculate estimation error covariance - Update the error covariance
-  PX_00 -= KX_0 * PX_00;
-  PX_01 -= KX_0 * PX_01;
-  PX_10 -= KX_1 * PX_00;
-  PX_11 -= KX_1 * PX_01;
-
-  return angleX;
 }
 
+/*******************************************************************************************************/
+void  AHRSupdate(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz) {
+  float recipNorm;
+  float q0q0, q0q1, q0q2, q0q3, q1q1, q1q2, q1q3, q2q2, q2q3, q3q3;
+  float halfex = 0.0f, halfey = 0.0f, halfez = 0.0f;
+  float qa, qb, qc;
 
-// Kalman Y
+  // Auxiliary variables to avoid repeated arithmetic
+  q0q0 = q0 * q0;
+  q0q1 = q0 * q1;
+  q0q2 = q0 * q2;
+  q0q3 = q0 * q3;
+  q1q1 = q1 * q1;
+  q1q2 = q1 * q2;
+  q1q3 = q1 * q3;
+  q2q2 = q2 * q2;
+  q2q3 = q2 * q3;
+  q3q3 = q3 * q3;
+  
+  
+  // Use magnetometer measurement only when valid (avoids NaN in magnetometer normalisation)
+  if((mx != 0.0f) && (my != 0.0f) && (mz != 0.0f)) {
+    float hx, hy, bx, bz;
+    float halfwx, halfwy, halfwz;
+    
+    // Normalise magnetometer measurement
+    recipNorm = invSqrt(mx * mx + my * my + mz * mz);
+    mx *= recipNorm;
+    my *= recipNorm;
+    mz *= recipNorm;
+    
+    // Reference direction of Earth's magnetic field
+    hx = 2.0f * (mx * (0.5f - q2q2 - q3q3) + my * (q1q2 - q0q3) + mz * (q1q3 + q0q2));
+    hy = 2.0f * (mx * (q1q2 + q0q3) + my * (0.5f - q1q1 - q3q3) + mz * (q2q3 - q0q1));
+    bx = sqrt(hx * hx + hy * hy);
+    bz = 2.0f * (mx * (q1q3 - q0q2) + my * (q2q3 + q0q1) + mz * (0.5f - q1q1 - q2q2));
+    
+    // Estimated direction of magnetic field
+    halfwx = bx * (0.5f - q2q2 - q3q3) + bz * (q1q3 - q0q2);
+    halfwy = bx * (q1q2 - q0q3) + bz * (q0q1 + q2q3);
+    halfwz = bx * (q0q2 + q1q3) + bz * (0.5f - q1q1 - q2q2);
+    
+    // Error is sum of cross product between estimated direction and measured direction of field vectors
+    halfex = (my * halfwz - mz * halfwy);
+    halfey = (mz * halfwx - mx * halfwz);
+    halfez = (mx * halfwy - my * halfwx);
+  }
 
-/* Kalman filter variables and constants */
-const double Q_angleY = 0.001; // Process noise covariance for the accelerometer - Sw
-const double Q_gyroY = 0.003; // Process noise covariance for the gyro - Sw
-const double R_angleY = 0.03; // Measurement noise covariance - Sv
 
-double angleY = 180; // The angle output from the Kalman filter
-double biasY = 0; // The gyro bias calculated by the Kalman filter
-double PY_00 = 0, PY_01 = 0, PY_10 = 0, PY_11 = 0;
-double dtY, yY, SY;
-double KY_0, KY_1;
+  // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
+  if((ax != 0.0f) && (ay != 0.0f) && (az != 0.0f)) {
+    float halfvx, halfvy, halfvz;
+    
+    // Normalise accelerometer measurement
+    recipNorm = invSqrt(ax * ax + ay * ay + az * az);
+    ax *= recipNorm;
+    ay *= recipNorm;
+    az *= recipNorm;
+    
+    // Estimated direction of gravity
+    halfvx = q1q3 - q0q2;
+    halfvy = q0q1 + q2q3;
+    halfvz = q0q0 - 0.5f + q3q3;
+  
+    // Error is sum of cross product between estimated direction and measured direction of field vectors
+    halfex += (ay * halfvz - az * halfvy);
+    halfey += (az * halfvx - ax * halfvz);
+    halfez += (ax * halfvy - ay * halfvx);
+  }
 
-double kalmanY(double newAngle, double newRate, double dtime) {
+  // Apply feedback only when valid data has been gathered from the accelerometer or magnetometer
+  if(halfex != 0.0f && halfey != 0.0f && halfez != 0.0f) {
+    // Compute and apply integral feedback if enabled
+    if(twoKi > 0.0f) {
+      integralFBx += twoKi * halfex * (1.0f / sampleFreq);  // integral error scaled by Ki
+      integralFBy += twoKi * halfey * (1.0f / sampleFreq);
+      integralFBz += twoKi * halfez * (1.0f / sampleFreq);
+      gx += integralFBx;  // apply integral feedback
+      gy += integralFBy;
+      gz += integralFBz;
+    }
+    else {
+      integralFBx = 0.0f; // prevent integral windup
+      integralFBy = 0.0f;
+      integralFBz = 0.0f;
+    }
 
-  dtY = dtime / 1000000; // Convert from microseconds to seconds
-
-  // Discrete Kalman filter time update equations - Time Update ("Predict")
-  // Update xhat - Project the state ahead
-  angleY += dtY * (newRate - biasY);
-
-  // Update estimation error covariance - Project the error covariance ahead
-  PY_00 += -dtY * (PY_10 + PY_01) + Q_angleY * dtY;
-  PY_01 += -dtY * PY_11;
-  PY_10 += -dtY * PY_11;
-  PY_11 += +Q_gyroY * dtY;
-
-  // Discrete Kalman filter measurement update equations - Measurement Update ("Correct")
-  // Calculate Kalman gain - Compute the Kalman gain
-  SY = PY_00 + R_angleY;
-  KY_0 = PY_00 / SY;
-  KY_1 = PY_10 / SY;
-
-  // Calculate angle and resting rate - Update estimate with measurement zk
-  yY = newAngle - angleY;
-  angleY += KY_0 * yY;
-  biasY += KY_1 * yY;
-
-  // Calculate estimation error covariance - Update the error covariance
-  PY_00 -= KY_0 * PY_00;
-  PY_01 -= KY_0 * PY_01;
-  PY_10 -= KY_1 * PY_00;
-  PY_11 -= KY_1 * PY_01;
-
-  return angleY;
+    // Apply proportional feedback
+    gx += twoKp * halfex;
+    gy += twoKp * halfey;
+    gz += twoKp * halfez;
+  }
+  
+  // Integrate rate of change of quaternion
+  gx *= (0.5f * (1.0f / sampleFreq));   // pre-multiply common factors
+  gy *= (0.5f * (1.0f / sampleFreq));
+  gz *= (0.5f * (1.0f / sampleFreq));
+  qa = q0;
+  qb = q1;
+  qc = q2;
+  q0 += (-qb * gx - qc * gy - q3 * gz);
+  q1 += (qa * gx + qc * gz - q3 * gy);
+  q2 += (qa * gy - qb * gz + q3 * gx);
+  q3 += (qa * gz + qb * gy - qc * gx);
+  
+  // Normalise quaternion
+  recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+  q0 *= recipNorm;
+  q1 *= recipNorm;
+  q2 *= recipNorm;
+  q3 *= recipNorm;
+  
+  //Serial.print("q0: ");Serial.print(q0);Serial.print("  ");
+  //Serial.print("q1: ");Serial.print(q1);Serial.print("  ");
+  //Serial.print("q2: ");Serial.print(q2);Serial.print("  ");
+  //Serial.print("q3: ");Serial.println(q3);
 }
 
-double getXangle() {
+/*******************************************************************************************************/
+void getQ(float * q) {
+  
+  // Array for sensor values
+  float val[9];
+  
+  // Get the Sensor values
+  getValues(val);
+  
+  now = micros();
+
+  sampleFreq = 1.0 / ((now - lastUpdate) / 1000000.0);
+  //Serial.print("SR: ");Serial.print(sampleFreq);Serial.print("Hz");  
+  lastUpdate = now;
+    
+    // This is where you get the axis aligned.
+    // gyro values are expressed in deg/sec
+    #if defined(someboard)
+      AHRSupdate(val[3] * M_PI/180, val[4] * M_PI/180, val[5] * M_PI/180, val[0], val[1], val[2], val[6], val[7], val[8]);
+    #elif defined(SEN_10724)
+      AHRSupdate(val[3] * M_PI/180, val[4] * M_PI/180, val[5] * M_PI/180, val[0], val[1], val[2], val[7], -val[6], val[8]);
+    #elif defined(ARDUIMU_v3)
+      AHRSupdate(val[3], val[4], val[5], val[0], val[1], val[2], -val[6], -val[7], val[8]);
+    #elif defined(HK_MW_PRO)
+    	//(      float gx, float gy, float gz,  float ax,  float ay, float az, float mx, float my,  float mz)
+      AHRSupdate(-val[4],  val[3],   val[5],    -val[1],   val[0],   val[2],   val[6],   val[7],    val[8]);
+    //Serial.print(val[3]);Serial.print(" ");Serial.print(val[3]);Serial.print(" ");Serial.print(val[5]);Serial.print(" ");
+    //Serial.print(val[0]);Serial.print(" ");Serial.print(val[1]);Serial.print(" ");Serial.print(val[2]);Serial.print(" ");
+    //Serial.print(-val[7]);Serial.print(" ");Serial.print(val[6]);Serial.print(" ");Serial.println(val[8]);      
+    #endif
 
   
-  // First 3 values are ACCEL, last 2 are GYRO values
-  double zeroValue[5] = { 0, 0, 0, -32, 254  }; // TODO - Get these values during ACCEL and GYRO calibration.
-
-  int xyz[3];
-  accel.readAccel(xyz);
+  q[0] = q0;
+  q[1] = q1;
+  q[2] = q2;
+  q[3] = q3;
   
-  //Serial.print("Accel Data x: ");Serial.print(xyz[0]);Serial.print("y: ");Serial.print(xyz[1]);Serial.print("x: ");Serial.println(xyz[2]);
-  
-  float accelX = (xyz[0]/8191.0 * 2);
-  float accelZ = (xyz[2]/8191.0 * 2);
-
-  //Serial.print("Accel X");Serial.print(accelX);
-  
-  double accXval = (double)accelX-zeroValue[0];
-  double accZval = (double)accelZ-zeroValue[2];
-  double angle = (atan2(accXval,accZval)+PI)*RAD_TO_DEG;
-  return angle;
 }
 
-//
-double getYangle() {
-
-  // First 3 values are ACCEL, last 2 are GYRO values
-  double zeroValue[5] = { 0, 0, 0, -32, 254  }; // TODO - Get these values during ACCEL and GYRO calibration.
+/*******************************************************************************************************/
+void getYawPitchRollRad(float * ypr) {
+  float q[4]; // quaternion
+  float gx, gy, gz; // estimated gravity direction
+  getQ(q);
   
-  int xyz[3];
-  accel.readAccel(xyz);
-  float accelY = (xyz[1]/8191.0 * 2);
-  float accelZ = (xyz[2]/8191.0 * 2);
   
-  //Serial.print("Accel Y");Serial.print(accelY);Serial.print("Accel Z");Serial.println(accelZ);
+  gx = 2 * (q[1]*q[3] - q[0]*q[2]);
+  gy = 2 * (q[0]*q[1] + q[2]*q[3]);
+  gz = q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3];
+  
+  ypr[0] = atan2(2 * q[1] * q[2] - 2 * q[0] * q[3], 2 * q[0]*q[0] + 2 * q[1] * q[1] - 1);
+  ypr[1] = atan(gx / sqrt(gy*gy + gz*gz));
+  ypr[2] = atan(gy / sqrt(gx*gx + gz*gz));
+}
 
-  double accYval = (double)accelY-zeroValue[1];
-  double accZval = (double)accelZ-zeroValue[2];
-  double angle = (atan2(accYval,accZval)+PI)*RAD_TO_DEG;
-  return angle;
+void getYawPitchRoll(float * ypr) {
+  getYawPitchRollRad(ypr);
+  arr3_rad_to_deg(ypr);
+}
+
+void arr3_rad_to_deg(float * arr) {
+  arr[0] *= 180/M_PI;
+  arr[1] *= 180/M_PI;
+  arr[2] *= 180/M_PI;
+}
+
+/*******************************************************************************************************/
+float invSqrt(float number) {
+  union {
+    float f;
+    int32_t i;
+  } y;
+
+  y.f = number;
+  y.i = 0x5f375a86 - (y.i >> 1);
+  y.f = y.f * ( 1.5f - ( number * 0.5f * y.f * y.f ) );
+  return y.f;
 }

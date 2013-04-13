@@ -20,7 +20,6 @@ void GetEepromValues(int calData[]){
     delay(5000);
 
     // Read Magnetometer calibration data
-    calData[0] = eeprom_read(CAL_FLAG_ADDR);    
     calData[1] = eeprom_read(MAG_MIN_X_ADDR);
     calData[2] = eeprom_read(MAG_MAX_X_ADDR);
     calData[3] = eeprom_read(MAG_MIN_Y_ADDR);

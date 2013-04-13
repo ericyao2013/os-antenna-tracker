@@ -18,9 +18,9 @@
 //Analogue Pins only. TODO - Digital pins for unlimited rotation servos
 /******************************************************************************/
 
-#define PAN_PIN 8 //Pan Servo
+#define PAN_PIN 10 //Pan Servo
 #define TILT_PIN 9 //Tilt Servo
-#define ROLL_PIN 10 //Roll Servo - TODO
+#define ROLL_PIN 8 //Roll Servo - TODO
 
 /******************************************************************************/
 /******************        Servo Output values        *************************/
@@ -29,21 +29,16 @@
 /******************************************************************************/
 
 //PAN Servo should be able to move 360 Degrees or be externally geared to allow 360 degree movement.
-//PAN_MIN should be 180 degrees to the left (When facing front of tracker) from PAN_MID
-//PAN_MID should point to the front of the tracker.
-//PAN_MAX should be 360 degrees to the right of MIN and 180 degrees to the right of MID
-#define PAN_MIN 1000
-#define PAN_MID 1500
-#define PAN_MAX 2000
+//PAN_MIN is 180 degrees clockwise from the front of the tracker when facing its FRONT.
+//PAN_MAX is 180 degrees couter clockwise from the front of the tracker when facing its FRONT.
+#define PAN_MIN 1102
+#define PAN_MAX 2010
 
 //TILT servo should be able to move 90 Degrees.
 //TILT_MIN should be at the bottom of travel and point parallel with the ground.
-//TILT_MID should be 45 degrees up from TILT_MIN
-//TILT_MAX should be 90 degrees up from TILT_MIN and 45 Degrees up from TILT_MID, eg it should point vertically up.
-#define TILT_MIN 1000
-#define TILT_MID 1500
-#define TILT_MAX 2000
-
+//TILT_MAX should be 180 degrees from TILT_MIN.
+#define TILT_MIN 1040
+#define TILT_MAX 1940
 
 //ROLL servo should be able to move 10% more than the maximum ROLL required to counteract the vehicle the tracker is attached to, eg a Boat.
 //Using the example of a Boat that will roll up to 40 degrees, servo required to move 88 degrees - 40 + 40 + (10% x (40 + 40)) = 88 degrees.
@@ -51,9 +46,8 @@
 //ROLL_MIN should be at 44 degrees to left from level.
 //ROLL_MID should be at 0 degrees from level.
 //ROLL_MAX should be 44 degrees to right from level.
-#define ROLL_MIN 1000
-#define ROLL_MID 1500
-#define ROLL_MAX 2000
+#define ROLL_MIN 1037
+#define ROLL_MAX 1943
 
 
 /******************************************************************************/
@@ -97,22 +91,6 @@
 
 //Mavlink
 //TODO
-
-/******************************************************************************/
-/******************          Sensor Offsets           *************************/
-/******************************************************************************/
-//Use these to override board definition - TODO
-
-//Accelerometer
-#define ACC_ORIENTATION(X, Y, Z)  {accADC[ROLL]  = -X; accADC[PITCH]  = -Y; accADC[YAW]  =  Z;}
-
-//Gyroscope
-#define GYRO_ORIENTATION(X, Y, Z) {gyroADC[ROLL] =  Y; gyroADC[PITCH] = -X; gyroADC[YAW] = -Z;}
-
-//Magnometer
-#define MAG_ORIENTATION(X, Y, Z)  {magADC[ROLL]  =  Y; magADC[PITCH]  = -X; magADC[YAW]  = -Z;}
-
-
 
 /******************************************************************************/
 /******************   GENERAL VARIABLES FOR SOFTWARE  *************************/
