@@ -123,7 +123,7 @@ float DistanceBetween(float lat1, float lon1, float lat2, float lon2){
 // Error of approx 1 degrees is the best this formula and AVR chip can get.
 // Taking into account earth gravity effect on radio waves would reduce the error by about 1 degree for every 200km.
 // In saying the above, the AVR chip produces quite a bit of error (only 7 decimal places).
-float ElevationAngle(float distance){
+float ElevationAngle(float distance, float alt2, float alt2){
 
   // Convert Radians to Degrees
   float ToDeg = 180.0 / PI;
@@ -131,7 +131,7 @@ float ElevationAngle(float distance){
   // Radius of the Earth in meters
   float Radius = 6371000;
 
-  float eAngle = ToDeg * ( (veh_alt - trac_alt) / distance - (distance / (2*Radius)) );
+  float eAngle = ToDeg * ( (alt2 - alt1) / distance - (distance / (2*Radius)) );
 
   // Returning the Elevation Angle 
   return eAngle;
@@ -144,7 +144,7 @@ float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 
   float AzAngle = 0;
 
-  float x = acos( (sin(lat2) - sin(lat1)*cos(distance) ) / (sin(distance)*cos(lat1)) );
+  float x = acos( (sin(lat2) - sin(lat1)*cos(distance) ) / (sin(distance)*cos(lat2)) );
 
   if (sin(lon2-lon1) < 0) {
     AzAngle = x;
@@ -159,8 +159,8 @@ float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 
 void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHeading){
 
-  // Because most Pan servos can only move 360 degrees max, the midpoint of the servos is the front of the tracker.
-  // If the tracker is pointing East 90 degrees, all measurements will be offset by 90 degrees to keep the maximum
+  // Because most Pan servos can only move 360 degrees max, the midpoint of the PAN servo is the front of the tracker.
+  // If the tracker is pointing +90 degrees (East), all measurements will be offset by -90 degrees to keep the maximum
   // amount of travel available.
 
   // Correct azimuth for True North Heading (Heading compensated for declination)
@@ -187,36 +187,103 @@ void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHea
 //It is important that this loop be as quick as possible so we don't loose UAVTalk packets.
 void loop(){
   
+  // Get GPS Data
   getGPS();
-
-  // Used for Elevation Angle
-  float distanceToHome = DistanceBetween(trac_lat, trac_lon, veh_lat, veh_lon);
-
-  // Used for Servo Movement
-  float ElevAngle = ElevationAngle(distanceToHome);
-
-  // Used for Servo Movement
-  float AzAngle = Azimuth(distanceToHome, trac_lat, trac_lon, veh_lat, veh_lon);
   
-  // Get the Declination Angle
-  float declinationAngle = declination.get_declination(trac_lat, trac_lon);  
+  // Only do the below if we have local GPS data and Vehicle GPS data
+  if (gpsStat == 1 && telStat == 1){
+    // Used for Elevation Angle
+    float distanceToHome = DistanceBetween();
+  
+    // Get the Elevation angle
+    float ElevAngle = ElevationAngle(distanceToHome);
+  
+    // Get the Azimuth angle
+    float AzAngle = Azimuth(distanceToHome, trac_lat, trac_lon, veh_lat, veh_lon);
+    
+    // Get the Declination Angle
+    float declinationAngle = declination.get_declination(trac_lat, trac_lon);
+    
+  }
 
   // AHRS Array
   float ypr[3];
   // Get AHRS data - Yaw, Pitch, Roll
   getYawPitchRoll(ypr);
   
-  // Put Angles array into variables to pass to MoveServos()
-  float pitchDegrees = ypr[1];
-  float rollDegrees = ypr[2];
-  float yawDegrees = ypr[0] + declinationAngle;  
-
-  //Servos must be corrected for current front as Zero point.
-  MoveServos(ElevAngle, AzAngle, pitchDegrees, rollDegrees, yawDegrees);
+  moveServos();
 
 #if defined (PRINT_TO_SERIAL)
   serialPrint();
 #endif
 
 }
+
+void moveServos(int imuStat, int gpsStat, int telStat, float yaw, float pitch, float roll){ 
+  
+  // If IMU, GPS and Telemetry Status = Ready then move servos
+  if (imuStat == 1 && gpsStat == 1 && telStat == 1){
+  //Calulate Servo movements
+  int panMicroseconds = map(yaw, -179, 179, PanMinPWM, PanMaxPWM);
+  int tiltMicroseconds = map(pitch, 89, -89, TiltMinPWM, TiltMaxPWM);
+  int rollMicroseconds = map(roll, 89, -89, RollMinPWM, RollMaxPWM);
+  
+  // Move Servos
+  PAN.writeMicroseconds(panMicroseconds);
+  TILT.writeMicroseconds(tiltMicroseconds);
+  ROLL.writeMicroseconds(rollMicroseconds);
+  }
+  else{
+    // Move the servos to default starting position
+    servoDefault();
+  }
+}
+
+// Flash LEDs visually shows the status of the tracker.
+// RestLED - Status of whole system - Solid when not ready and flash once per second when ready.
+// LED1 - IMU Software - flash once per second when not ready and solid when ready.
+// LED2 - Local GPS Status - flash once per second when not ready and solid when ready.
+// LED3 - Telemetry Status - flash once per second when not ready and solid when ready.
+void flashLeds(){
+  
+  if (imuStat == 0 || gpsStat == 0 || telStat == 0) {
+    digitalWrite(SYSLEDPIN, HIGH);
+  }
+  else{
+    digitalWrite(SYSLEDPIN, LEDState);
+  }
+  
+  // If IMU is Ready then solid LED else flash LED
+  if (imuStat == 1) {
+    digitalWrite(IMULEDPIN, LOW);
+  }
+  else {
+    digitalWrite(IMULEDPIN, LEDState);
+  }
+  
+  // If GPS is Ready then solid LED else flash LED
+  if (gpsStat == 1) {
+    digitalWrite(GPSLEDPIN, LOW);
+  }
+  else {
+    digitalWrite(GPSLEDPIN, LEDState);
+  }
+
+  // If Telemetry is Ready then solid LED else flash LED
+  if (telStat == 1) {
+    digitalWrite(TLEDPIN, LOW);
+  }
+  else {
+    digitalWrite(TLEDPIN, LEDState);
+  }
+  
+  // Change value of LED Pin
+  if (LEDState == 0){
+    LEDState = 1;
+  }
+  else{
+      LEDState = 0;
+    }
+}
+
 

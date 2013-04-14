@@ -20,7 +20,7 @@
 
 #define PAN_PIN 10 //Pan Servo
 #define TILT_PIN 9 //Tilt Servo
-#define ROLL_PIN 8 //Roll Servo - TODO
+#define ROLL_PIN 8 //Roll Servo
 
 /******************************************************************************/
 /******************        Servo Output values        *************************/
@@ -42,10 +42,9 @@
 
 //ROLL servo should be able to move 10% more than the maximum ROLL required to counteract the vehicle the tracker is attached to, eg a Boat.
 //Using the example of a Boat that will roll up to 40 degrees, servo required to move 88 degrees - 40 + 40 + (10% x (40 + 40)) = 88 degrees.
-//If you have a servo that can move more that the required movement, it would be a good idea to use all the servo travel.
-//ROLL_MIN should be at 44 degrees to left from level.
-//ROLL_MID should be at 0 degrees from level.
-//ROLL_MAX should be 44 degrees to right from level.
+//If you have a servo that can move more than the required movement, it would be a good idea to use all the servo travel.
+//ROLL_MIN (using example above) should be at 44 degrees to left from level.
+//ROLL_MAX (using example above) should be 44 degrees to right from level.
 #define ROLL_MIN 1037
 #define ROLL_MAX 1943
 
