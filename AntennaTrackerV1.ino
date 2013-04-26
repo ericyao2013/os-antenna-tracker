@@ -75,28 +75,26 @@ void setup(){
   //Initialise the GYRO
   GYRO_init();
 
-#if defined(GYRO_CALIBRATE_STARTUP)
-  GYRO_calibrate();
-#endif
+  #if defined(GYRO_CALIBRATE_STARTUP)
+    GYRO_calibrate();
+  #endif
+  
+  #if defined(ACCEL_CALIBRATE)
+    //ACCEL_calibrate(); // 6 Point calibration
+    ACCEL_calibrateQ(); // Quick level calibration
+  #endif
+  
+  #if defined(MAG_CALIBRATE)
+    MAG_calibrate();
+  #endif
 
-#if defined(ACCEL_CALIBRATE)
-  //ACCEL_calibrate(); // 6 Point calibration
-  ACCEL_calibrateQ(); // Quick level calibration
-#endif
-
-#if defined(MAG_CALIBRATE)
-  MAG_calibrate();
-#endif
-
-
-  // Check tracker has been calibrated
-  // Tracker will stop at this point if not calibrated
-  //checkCaled();
+  // Start Timer for IMU Status
+  startTimer = millis();
 
 }
 
 
-float DistanceBetween(float lat1, float lon1, float lat2, float lon2){
+float DistanceBetween (float lat1, float lon1, float lat2, float lon2){
 
   float ToRad = PI / 180.0;
 
@@ -120,10 +118,9 @@ float DistanceBetween(float lat1, float lon1, float lat2, float lon2){
 
 
 // Here we get the Elevation angle
-// Error of approx 1 degrees is the best this formula and AVR chip can get.
-// Taking into account earth gravity effect on radio waves would reduce the error by about 1 degree for every 200km.
-// In saying the above, the AVR chip produces quite a bit of error (only 7 decimal places).
-float ElevationAngle(float distance, float alt2, float alt2){
+// To take into account altitude of each vehicle the formula uses great circle
+// but uses the difference in altitudes to get proper estimation of elevation.
+float ElevationAngle (float distance, float alt1, float alt2){
 
   // Convert Radians to Degrees
   float ToDeg = 180.0 / PI;
@@ -140,7 +137,7 @@ float ElevationAngle(float distance, float alt2, float alt2){
 
 // Getting the Azimuth Angle
 // Error of approx 1 degrees is the best this formula and AVR chip can get
-float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
+float Azimuth (float distance, float lat1, float lon1, float lat2, float lon2){
 
   float AzAngle = 0;
 
@@ -157,61 +154,82 @@ float Azimuth(float distance, float lat1, float lon1, float lat2, float lon2){
 
 }
 
-void MoveServos(float eAngle, float azimuth, float tilt, float roll, float tnHeading){
-
-  // Because most Pan servos can only move 360 degrees max, the midpoint of the PAN servo is the front of the tracker.
-  // If the tracker is pointing +90 degrees (East), all measurements will be offset by -90 degrees to keep the maximum
-  // amount of travel available.
-
-  // Correct azimuth for True North Heading (Heading compensated for declination)
-  float correctedAzimuth = azimuth - tnHeading;
-
-  // Correct Elevation angle for Tilt
-  float correctedTilt = eAngle - tilt;
-
-  // Mapping Servo Min and Max to the MIN and MAX of the Axis
-  int servoPan = map(correctedAzimuth, 0, 359, PAN_MIN, PAN_MAX);
-  
-  int servoTilt = map(eAngle, 0, 90, TILT_MIN, TILT_MAX);
-
-  int servoRoll = map(azimuth, 0, 359, ROLL_MIN, ROLL_MAX);
-
-  // Moving the Servos
-  PAN.writeMicroseconds(servoPan);  
-  TILT.writeMicroseconds(servoTilt);
-  ROLL.writeMicroseconds(servoRoll);
-
-}
-
 //The main loop, where everything happens.
-//It is important that this loop be as quick as possible so we don't loose UAVTalk packets.
 void loop(){
+  
+  float correctedAzimuth = 0.0;
+  float correctedTilt = 0.0;
+  float correctedRoll = 0.0;
   
   // Get GPS Data
   getGPS();
   
+  // AHRS Array
+  float ypr[3];
+  // Get AHRS data - Yaw, Pitch, Roll
+  getYawPitchRoll(ypr);
+  
+  // IMU needs time to settle - give it 45 seconds
+  if((startTimer + 45000) < millis()){
+  imuStat = 1;
+  }
+  
+  
   // Only do the below if we have local GPS data and Vehicle GPS data
+  // The reason is we need the data for local and vehicle GPS data to get a result.
   if (gpsStat == 1 && telStat == 1){
     // Used for Elevation Angle
-    float distanceToHome = DistanceBetween();
+    float distanceToHome = DistanceBetween(trac_lat, trac_lon, veh_lat, veh_lon);
   
     // Get the Elevation angle
-    float ElevAngle = ElevationAngle(distanceToHome);
+    float ElevAngle = ElevationAngle(distanceToHome, trac_alt, veh_alt);
   
     // Get the Azimuth angle
     float AzAngle = Azimuth(distanceToHome, trac_lat, trac_lon, veh_lat, veh_lon);
     
     // Get the Declination Angle
     float declinationAngle = declination.get_declination(trac_lat, trac_lon);
-    
-  }
-
-  // AHRS Array
-  float ypr[3];
-  // Get AHRS data - Yaw, Pitch, Roll
-  getYawPitchRoll(ypr);
   
-  moveServos();
+  // Because most Pan servos can only move 360 degrees max, the midpoint of the PAN servo is the front of the tracker.
+  // For example - if the tracker is pointing +90 degrees (East), all measurements will be offset by -90 degrees to
+  // keep the maximum amount of travel available.
+
+  // Correct Azimuth to Vehicle for declination and Yaw.
+  correctedAzimuth = AzAngle - ypr[0] + declinationAngle;
+
+  // Correct Elevation angle for Tilt/Roll
+  // We correct Tilt with Roll because if the tracker is rolled by 10 degrees and vehicle is due East, the Elevation Angle needs to be 
+  // corrected for Roll instead of Pitch. We correct it by getting the corrected Azimuth and using it calculate the 
+  // percentage of roll/tilt to correct Elevation.
+  
+  // TILT COMPENSATION
+  // If correctedAzimuth is between -90 and -180 or +90 and +180
+  if (correctedAzimuth > 90){
+    // correctedTilt = Elevation Angle + Percentage of Roll to Apply + Percentage of Pitch to Apply
+    correctedTilt = ElevAngle + (ypr[2] * (180 - correctedAzimuth)) + (ypr[1] * (abs(ypr[1]) - 180));
+  }
+  // If yaw is between -90 and +90 degrees
+  else{
+    // correctedTilt = Elevation Angle + Percentage of Roll to Apply + Percentage of Tilt to Apply
+    correctedTilt = ElevAngle + (ypr[2] * correctedAzimuth) + (correctedAzimuth * ypr[2]);
+  }
+  
+  // ROLL COMPENSATION
+  // If correctedAzimuth is between -90 and -180 or +90 and +180
+  if (abs(ypr[0]) > 90){
+    // correctedTilt = Elevation Angle + Percentage of Roll to Apply + Percentage of Pitch to Apply
+    correctedRoll = ElevAngle + (ypr[2] * (180 - correctedAzimuth)) + (ypr[1] * (abs(ypr[1]) - 180));
+  }
+  // If correctedAzimuth is between -90 and +90 degrees
+  else{
+    // correctedTilt = Elevation Angle + Percentage of Roll to Apply + Percentage of Tilt to Apply
+    correctedRoll = ElevAngle + (ypr[2] * correctedAzimuth) + (correctedAzimuth * ypr[2]);
+  }
+  
+  // Move Servos
+  moveServos(correctedAzimuth, correctedTilt, correctedRoll);  
+  
+  } // End Only do when have all data.
 
 #if defined (PRINT_TO_SERIAL)
   serialPrint();
@@ -219,14 +237,14 @@ void loop(){
 
 }
 
-void moveServos(int imuStat, int gpsStat, int telStat, float yaw, float pitch, float roll){ 
+void moveServos(float yaw, float pitch, float roll){ 
   
   // If IMU, GPS and Telemetry Status = Ready then move servos
   if (imuStat == 1 && gpsStat == 1 && telStat == 1){
   //Calulate Servo movements
-  int panMicroseconds = map(yaw, -179, 179, PanMinPWM, PanMaxPWM);
-  int tiltMicroseconds = map(pitch, 89, -89, TiltMinPWM, TiltMaxPWM);
-  int rollMicroseconds = map(roll, 89, -89, RollMinPWM, RollMaxPWM);
+  int panMicroseconds = map(yaw, -179, 179, PAN_MIN, PAN_MAX);
+  int tiltMicroseconds = map(pitch, 89, -89, TILT_MIN, TILT_MAX);
+  int rollMicroseconds = map(roll, 89, -89, ROLL_MIN, ROLL_MAX);
   
   // Move Servos
   PAN.writeMicroseconds(panMicroseconds);
@@ -234,8 +252,10 @@ void moveServos(int imuStat, int gpsStat, int telStat, float yaw, float pitch, f
   ROLL.writeMicroseconds(rollMicroseconds);
   }
   else{
-    // Move the servos to default starting position
-    servoDefault();
+      // Move the servos to default starting position
+      PAN.writeMicroseconds(PAN_MIN + ((PAN_MAX - PAN_MIN) / 2));
+      TILT.writeMicroseconds(TILT_MIN + ((TILT_MAX - TILT_MIN) / 2));
+      ROLL.writeMicroseconds(ROLL_MIN + ((ROLL_MAX - ROLL_MIN) / 2));
   }
 }
 

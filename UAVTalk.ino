@@ -230,8 +230,8 @@ int uavtalk_read(void) {
 	uint8_t show_prio_info = 0;
 	
 	// grabbing data
-	while (!show_prio_info && Serial2.available() > 0) {
-		uint8_t c = Serial2.read();
+	while (!show_prio_info && Serial3.available() > 0) {
+		uint8_t c = Serial3.read();
 		
 		//Look through the UAVTalk message for each UAVTalk option. data to msg
 		if (uavtalk_parse_char(c, &msg)) {
@@ -254,7 +254,7 @@ int uavtalk_read(void) {
 						break;
 					}
 				break;
-				case ATTITUDEACTUAL_OBJID:
+				/*case ATTITUDEACTUAL_OBJID:
                                         response = UAVTALK_TYPE_ACK;
 					last_flighttelemetry_connect = millis();
 					show_prio_info = 1;
@@ -265,7 +265,7 @@ int uavtalk_read(void) {
                                         if (veh_lat == 0) {
                                             veh_heading = veh_yaw;
                                         }
-				break;
+				break;*/
 				/*case FLIGHTSTATUS_OBJID:
                                         response = UAVTALK_TYPE_ACK;
         				veh_armed		= uavtalk_get_int8(&msg, FLIGHTSTATUS_OBJ_ARMED);
@@ -311,12 +311,12 @@ int uavtalk_read(void) {
                                         
 				break;
 				// because of #define PIOS_GPS_MINIMAL in the OP flight code, the following is unfortunately currently not supported:
-				case GPSTIME_OBJID:
+				/*case GPSTIME_OBJID:
                                         response = UAVTALK_TYPE_ACK;
         				veh_time_hour		= uavtalk_get_int8(&msg, GPSTIME_OBJ_HOUR);
         				veh_time_minute		= uavtalk_get_int8(&msg, GPSTIME_OBJ_MINUTE);
 				
-                                break;
+                                break;*/
 				/*case GPSVELOCITY_OBJID:
                                         response = UAVTALK_TYPE_ACK;
 					veh_climb		= uavtalk_get_float(&msg, GPSVELOCITY_OBJ_DOWN);		// TODO check algebraic sign
@@ -334,9 +334,9 @@ int uavtalk_read(void) {
 				// veh_airspeed = 0;               // air speed (only with pitot tube)
 				// etc.
 			}
-			if (msg.MsgType == UAVTALK_TYPE_OBJ_ACK) {
+			/*if (msg.MsgType == UAVTALK_TYPE_OBJ_ACK) {
 				uavtalk_respond_object(&msg, response);
-			}
+			}*/
 		}
 
 		delayMicroseconds(190);  // wait at least 1 byte

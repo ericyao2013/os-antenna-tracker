@@ -151,8 +151,8 @@ static float        trac_alt = 0;               // home altitude
 static long         dist_to_veh = 0;            // distance from tracker to vehicle
 
 //Tracker to Vehicle variables
-static uint8_t      azimuth_from_true_north = 0;    // azimuth from current tracker location
-static uint8_t      corrected_elevation = 0;        // elevation corrected for Home altitude and curvature of earth
+//static uint8_t      azimuth_from_true_north = 0;    // azimuth from current tracker location
+//static uint8_t      corrected_elevation = 0;        // elevation corrected for Home altitude and curvature of earth
 
 
 // These variables could be used for the ROLL servo output. 
